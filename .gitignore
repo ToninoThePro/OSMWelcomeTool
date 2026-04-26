@@ -1,0 +1,35 @@
+# Gradle
+.gradle/
+/build/
+.gradle
+
+# Android Studio / IntelliJ IDEA
+*.iml
+/.idea/
+.idea/
+.DS_Store
+
+# Local properties
+/local.properties
+local.properties
+
+# Build output
+/captures
+/app/build/
+
+# Native build
+.externalNativeBuild
+.cxx
+
+# Editor temporary files
+*.swp
+*.swo
+
+# Log files
+*.log
+
+# Gradle properties (potrebbe contenere credenziali)
+# gradle.properties
+
+# Kotlin
+.kotlinc
