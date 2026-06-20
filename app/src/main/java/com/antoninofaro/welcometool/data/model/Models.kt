@@ -20,12 +20,6 @@ data class OsmUser(
     val roles: List<String>?,
     val changesets: CountWrapper?,
     val traces: CountWrapper?,
-    val blocksCount: Int = 0,
-    val tracksCount: Int = 0,
-    val changesetCount: Int = 0,
-    val createdAt: String = "",
-    val profileImageUrl: String? = null,
-    val userUrl: String = "",
 )
 
 data class UserImage(

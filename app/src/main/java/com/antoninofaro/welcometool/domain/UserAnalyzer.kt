@@ -7,6 +7,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import androidx.compose.runtime.Immutable
+import timber.log.Timber
 
 /**
  * Represents the result of analyzing an OpenStreetMap user's profile and history.
@@ -98,6 +99,7 @@ object UserAnalyzer {
         return try {
             isoDateFormat.get()?.parse(dateString)
         } catch (e: Exception) {
+            Timber.w(e, "Failed to parse ISO date: %s", dateString)
             null
         }
     }

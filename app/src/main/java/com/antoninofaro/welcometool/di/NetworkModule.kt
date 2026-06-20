@@ -93,9 +93,7 @@ object NetworkModule {
                 }
             }
             .addInterceptor { chain ->
-                val settingsToken = settingsRepository.getOsmchaTokenOnce()
-                val debugToken = ""
-                val token = settingsToken.ifBlank { debugToken }
+                val token = settingsRepository.getOsmchaTokenOnce()
 
                 val original = chain.request()
                 if (token.isBlank()) {
