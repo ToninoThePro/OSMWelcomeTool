@@ -24,7 +24,7 @@ security-crypto = "1.1.0"
 timber = "5.0.1"
 truth = "1.4.5"
 work = "2.11.2"
-aboutLibraries = "14.1.0"
+aboutLibraries = "14.2.1"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
