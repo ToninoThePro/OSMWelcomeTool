@@ -1,5 +1,7 @@
 # OSM Welcome Tool
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **OSM Welcome Tool** è un'applicazione Android che aiuta la comunità OpenStreetMap a identificare e accogliere nuovi mappatori. Analizza i changeset recenti e i profili utente per classificare i contributori, monitorare le aree di interesse e tenere traccia dell'accoglienza, il tutto con sincronizzazione in background.
 
 ## Funzionalità
