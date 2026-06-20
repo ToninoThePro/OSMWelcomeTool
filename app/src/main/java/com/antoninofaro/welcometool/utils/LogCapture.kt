@@ -1,8 +1,6 @@
 package com.antoninofaro.welcometool.utils
 
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -25,7 +23,6 @@ data class LogEntry(
 @Singleton class LogCaptureTree @Inject constructor() : Timber.Tree() {
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
-    val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
     private val maxLogs = 500
@@ -41,7 +38,6 @@ data class LogEntry(
 
     @Synchronized
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
-        // Non catturare se disattivato
         if (!captureEnabled) return
 
         val levelName = when (priority) {
@@ -66,18 +62,6 @@ data class LogEntry(
         ringBuffer.addLast(entry)
         if (ringBuffer.size > maxLogs) ringBuffer.removeFirst()
         _logs.value = ringBuffer.toList()
-    }
-
-    fun clearLogs() {
-        ringBuffer.clear()
-        _logs.value = emptyList()
-    }
-
-    fun exportLogs(): String {
-        return _logs.value.joinToString("\n") { entry ->
-            "${entry.timestamp} ${entry.level}/${entry.tag}: ${entry.message}" +
-                    (if (entry.throwable != null) "\n${entry.throwable.stackTraceToString()}" else "")
-        }
     }
 }
 

@@ -132,7 +132,6 @@ class NewUserWorkerLogicTest {
         whenever(notifiedUserStorage.getAllNotifiedIds()).thenReturn(notifiedIds)
 
         // When - esegui la logica di decisione
-        settingsRepository.settingsFlow
         val notifiedIdsValue = notifiedUserStorage.getAllNotifiedIds()
 
         val notificationsEnabled = settings.showNotifications
