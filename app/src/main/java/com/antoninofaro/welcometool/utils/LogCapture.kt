@@ -64,5 +64,3 @@ data class LogEntry(
         _logs.value = ringBuffer.toList()
     }
 }
-
-

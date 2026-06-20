@@ -28,9 +28,6 @@ import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
 import javax.inject.Inject
 
-/**
- * Presenter-layer model containing user data combined with community analysis metrics.
- */
 data class UserUiModel(
     val user: OsmUser,
     val analysis: UserAnalysis,
@@ -53,12 +50,6 @@ data class MainUiState(
     val filterIsPowerUser: Boolean = false
 )
 
-/**
- * Coordinator ViewModel for the main user-listing UI.
- * Manages fetching of OpenStreetMap changesets and orchestrates parallel user profile analysis
- * using the [OsmRepository], [UserAnalyzer], and various local storage handlers.
- * It provides pagination, filtering, and a synchronized state flow holding [MainUiState].
- */
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val repository: OsmRepository,
@@ -90,16 +81,10 @@ class MainViewModel @Inject constructor(
         val areaActivityToPersist: UserAreaActivityEntity?
     )
 
-    /**
-     * Initializes or refreshes the list of users based on the currently selected bounding box.
-     * When [forceRefresh] is requested, the application bypasses short-circuit cache checks
-     * and forces a network sync using [syncRecentUsersForCurrentBBox] if needed.
-     *
-     * @param forceRefresh Whether to force a fresh data sync instead of serving cached contents right away.
-     */
     fun loadData(forceRefresh: Boolean = false) {
         viewModelScope.launch {
             currentPageOffset = 0
+            oldestChangesetCursor = null // ponytail: each full reload starts from present
             val selectedBBox = _uiState.value.selectedBBox
             val showRefreshIndicator = forceRefresh && _uiState.value.users.isNotEmpty()
             _uiState.value = _uiState.value.copy(
@@ -152,12 +137,6 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Coordinates the process of fetching the most recent changesets for a selected bounding box,
-     * extracting unique user IDs, checking local cache staleness, and processing any missing users in parallel.
-     *
-     * @param bbox Bounding box string used for limiting the geographic area.
-     */
     private suspend fun syncRecentUsersForCurrentBBox(bbox: String) {
         val welcomedIds = getWelcomedIds()
         val semaphore = Semaphore(MAX_CONCURRENT_USER_FETCH)
@@ -194,7 +173,7 @@ class MainViewModel @Inject constructor(
                 .filterNot { seenUserIds.contains(it) }
 
             if (newUids.isNotEmpty()) {
-                val changesetsByUid = changesets.associateBy { it.uid } // ponytail: no reversed() needed, UIDs are unique per scan window
+                val changesetsByUid = changesets.reversed().associateBy { it.uid } // ponytail: reversed so associateBy keeps the newest (first) per uid
                 val processedBatch = kotlinx.coroutines.coroutineScope {
                     val deferredResults = newUids.map { uid ->
                         async {
@@ -278,9 +257,6 @@ class MainViewModel @Inject constructor(
     ): ProcessedUser? = kotlinx.coroutines.coroutineScope {
         val recentChangeset = changesetsByUid[uid] ?: return@coroutineScope null
 
-        // TODO: applicare la preferenza settings.cacheEnabled per bypassare la cache quando disattivata.
-        // Check local cache first to avoid redundant network requests
-        // But refresh if older than 24 hours
         val cachedUser = userDao.getUserById(uid)
         val isStale = isUserCacheStale(cachedUser)
 
@@ -300,7 +276,6 @@ class MainViewModel @Inject constructor(
             )
         }
 
-        // Fetch user detail and history in parallel
         val userDeferred = async { repository.fetchUserDetail(uid) }
         val historyDeferred = async { repository.fetchUserChangesets(uid) }
 
@@ -315,7 +290,6 @@ class MainViewModel @Inject constructor(
         val user = userResult.data
         val userHistory = historyResult.getOrDefault(emptyList())
 
-        // Analyze user with welcomed status (OSMcha on-demand)
         val analysis = UserAnalyzer.analyze(user, userHistory, recentChangeset)
             .copy(isWelcomed = welcomedIds.contains(uid.toString()))
 
@@ -396,12 +370,6 @@ class MainViewModel @Inject constructor(
         return UserUiModel(osmUser, analysis, this.lastUpdated)
     }
 
-    /**
-     * Retrieves OSMCha metrics iteratively for a single user given their [userId].
-     * Once loaded, this state replaces existing matching UI models inside the internal state pipeline.
-     *
-     * @param userId The specific identifier matching [OsmUser.id] whose reputation needs checking.
-     */
     fun loadOsmchaForUser(userId: Long) {
         if (osmchaLoadedUserIds.contains(userId)) return
         osmchaLoadedUserIds.add(userId)
@@ -430,22 +398,11 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Updates the underlying search string applied to in-memory user lists.
-     *
-     * @param term The phrase or characters to search against the names of currently loaded users.
-     */
     fun updateSearchTerm(term: String) {
         _uiState.value = _uiState.value.copy(searchTerm = term)
         applyFilters()
     }
 
-    /**
-     * Executes a specialized local database lookup to discover a user bypassing the main sync timeline stream.
-     * Overrides current UI content directly with search matching results if successful.
-     *
-     * @param query The target username segment to search against the system cache via SQL LIKE queries.
-     */
     fun performSearch(query: String) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
@@ -601,7 +558,7 @@ class MainViewModel @Inject constructor(
         val normalizedSearchTerm = current.searchTerm.trim()
         val filtered = current.users.filter { uiModel ->
             val matchesSearch = if (normalizedSearchTerm.isBlank()) {
-                true // Mostra tutti gli utenti quando searchTerm è vuoto
+                true
             } else {
                 uiModel.user.displayName.contains(normalizedSearchTerm, ignoreCase = true)
             }
@@ -630,7 +587,6 @@ class MainViewModel @Inject constructor(
                 if (!currentStatus) it + userId.toString() else it - userId.toString()
             }
 
-            // Update local state immediately
             val updatedUsers = _uiState.value.users.map { userModel ->
                 if (userModel.user.id == userId) {
                     userModel.copy(
@@ -648,10 +604,8 @@ class MainViewModel @Inject constructor(
 
     fun refreshUser(userId: Long) {
         viewModelScope.launch {
-            // TODO: applicare la preferenza settings.cacheEnabled anche nel refresh puntuale del dettaglio.
             val cachedUser = userDao.getUserById(userId)
             if (cachedUser != null && !isUserCacheStale(cachedUser)) {
-                // Cache fresca: evitiamo roundtrip di rete non necessari quando si apre il dettaglio.
                 return@launch
             }
 
@@ -662,7 +616,6 @@ class MainViewModel @Inject constructor(
             }
 
             val user = userResult.data
-            // Fetch history for analysis (optional but good for completeness)
             val historyResult = repository.fetchUserChangesets(userId)
             val userHistory = historyResult.getOrDefault(emptyList())
 

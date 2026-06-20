@@ -39,11 +39,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,11 +79,27 @@ fun SettingsScreen(
     val nominatimResults by viewModel.nominatimResults.collectAsState()
     val isSearchingAreas by viewModel.isSearchingAreas.collectAsState()
     val areaSearchError by viewModel.areaSearchError.collectAsState()
+    val tokenVerification by viewModel.tokenVerification.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(tokenVerification) {
+        when (val state = tokenVerification) {
+            is TokenVerificationState.Success -> {
+                snackbarHostState.showSnackbar("Fatto, sei connesso come: ${state.username}")
+            }
+            is TokenVerificationState.Error -> {
+                snackbarHostState.showSnackbar(state.message)
+            }
+            else -> {}
+        }
+    }
+
     SettingsScreenContent(
         settings = settings,
         nominatimResults = nominatimResults,
         isSearchingAreas = isSearchingAreas,
         areaSearchError = areaSearchError,
+        snackbarHostState = snackbarHostState,
         onNavigateUp = onNavigateUp,
         onNavigateToLicenses = onNavigateToLicenses,
         onDarkModeChange = viewModel::updateDarkMode,
@@ -109,6 +128,7 @@ private fun SettingsScreenContent(
     nominatimResults: List<MonitoringArea>,
     isSearchingAreas: Boolean,
     areaSearchError: String?,
+    snackbarHostState: SnackbarHostState = SnackbarHostState(),
     onNavigateUp: () -> Unit,
     onNavigateToLicenses: () -> Unit,
     onDarkModeChange: (Boolean) -> Unit,
@@ -145,6 +165,7 @@ private fun SettingsScreenContent(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Impostazioni") },
@@ -162,9 +183,7 @@ private fun SettingsScreenContent(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Sezione Aspetto
             SettingsSectionHeader(title = "ASPETTO")
-
             SettingsToggleItem(
                 icon = Icons.Default.DarkMode,
                 title = "Tema Scuro",
@@ -174,8 +193,6 @@ private fun SettingsScreenContent(
             )
 
             HorizontalDivider()
-
-            // Sezione Aggiornamento
             SettingsSectionHeader(title = "AGGIORNAMENTO DATI")
 
             SettingsToggleItem(
@@ -207,8 +224,6 @@ private fun SettingsScreenContent(
             }
 
             HorizontalDivider()
-
-            // Sezione Filtri
             SettingsSectionHeader(title = "FILTRI PREDEFINITI")
 
             var minChangesText by remember(settings.minChangesetsFilter) { mutableStateOf(settings.minChangesetsFilter.toString()) }
@@ -230,8 +245,6 @@ private fun SettingsScreenContent(
             )
 
             HorizontalDivider()
-
-            // Sezione Aree di Controllo
             SettingsSectionHeader(title = "AREE DI CONTROLLO")
 
             OutlinedTextField(
@@ -327,8 +340,6 @@ private fun SettingsScreenContent(
             }
 
             HorizontalDivider()
-
-            // Sezione Notifiche
             SettingsSectionHeader(title = "NOTIFICHE")
 
             SettingsToggleItem(
@@ -339,7 +350,6 @@ private fun SettingsScreenContent(
                 onCheckedChange = onShowNotificationsChange
             )
 
-            // Pulsante per cancellare utenti notificati
             OutlinedButton(
                 onClick = onClearNotifiedUsers,
                 modifier = Modifier
@@ -359,8 +369,6 @@ private fun SettingsScreenContent(
             )
 
             HorizontalDivider()
-
-            // Sezione Cache e Performance
             SettingsSectionHeader(title = "CACHE E PERFORMANCE")
 
             SettingsToggleItem(
@@ -372,7 +380,6 @@ private fun SettingsScreenContent(
             )
 
             HorizontalDivider()
-            // Sezione OSMcha
             SettingsSectionHeader(title = "OSMCHA")
 
             OutlinedTextField(
@@ -463,8 +470,6 @@ private fun SettingsScreenContent(
             )
 
             HorizontalDivider()
-
-            // Informazioni App
             SettingsSectionHeader(title = "INFORMAZIONI")
 
             SettingsInfoItem(
@@ -502,7 +507,6 @@ private fun SettingsScreenContent(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Pulsante Reset
             OutlinedButton(
                 onClick = { showResetDialog = true },
                 modifier = Modifier
@@ -518,7 +522,6 @@ private fun SettingsScreenContent(
         }
     }
 
-    // Dialog di conferma reset
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },

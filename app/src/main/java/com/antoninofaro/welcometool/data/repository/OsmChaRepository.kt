@@ -1,5 +1,7 @@
 package com.antoninofaro.welcometool.data.repository
 
+import com.antoninofaro.welcometool.data.model.Result
+import com.antoninofaro.welcometool.data.model.safeApiCall
 import com.antoninofaro.welcometool.data.network.OsmChaService
 import kotlinx.coroutines.flow.first
 import timber.log.Timber
@@ -12,15 +14,6 @@ class OsmChaRepository @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) {
 
-    /**
-     * Fetches changeset statistics for a specific user.
-     * Returns a Pair where:
-     * - first: number of "Likes" (isChecked = true AND harmful = false)
-     * - second: number of "Dislikes" (harmful = true)
-     *
-     * Note: API doesn't support combined filters, so we fetch all changesets
-     * and filter client-side.
-     */
     suspend fun getUserOsmChaStats(username: String): Pair<Int, Int> {
         return try {
             val changesetsLimit = settingsRepository.settingsFlow.first().osmchaChangesetsLimit
@@ -42,5 +35,10 @@ class OsmChaRepository @Inject constructor(
             Timber.e(e, "OSMCha failed for %s", username)
             Pair(0, 0)
         }
+    }
+
+    suspend fun verifyToken(): Result<String> = safeApiCall {
+        val response = osmChaService.getCurrentUser()
+        response.username
     }
 }

@@ -61,7 +61,7 @@ class NewUserWorker @AssistedInject constructor(
             val uniqueUids = changesets.map { it.uid }.distinct()
             val notifiedIds = notifiedUserStorage.getAllNotifiedIds()
             val newlyNotified = LinkedHashSet<Long>()
-            val changesetsByUid = changesets.associateBy { it.uid } // ponytail: built once, O(n) instead of O(n*m)
+            val changesetsByUid = changesets.reversed().associateBy { it.uid } // ponytail: reversed so associateBy keeps the newest per uid
             val semaphore = Semaphore(6)
 
             coroutineScope {

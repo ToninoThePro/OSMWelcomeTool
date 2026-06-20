@@ -52,9 +52,6 @@ class OsmSyncWorker @AssistedInject constructor(
 
                     if (maxId > lastKnownId) {
                         Timber.d("New changesets found. Max ID: $maxId, Last Known: $lastKnownId")
-                        // Se lastKnownId è 0 (primo avvio), consideriamo tutto come "non nuovo" per evitare spam,
-                        // oppure consideriamo tutto nuovo?
-                        // Solitamente al primo avvio si salva solo l'ID più recente senza notificare.
                         if (lastKnownId == 0L) {
                             Timber.d("First run, saving maxId: $maxId without notification")
                             settingsRepository.updateLastKnownChangesetId(maxId)
@@ -62,7 +59,7 @@ class OsmSyncWorker @AssistedInject constructor(
                             val newCount = changesets.count { it.id > lastKnownId }
 
                             if (showNotifications && newCount > 0) {
-                                notificationHelper.createNotificationChannel() // Ensure channel exists
+                                notificationHelper.createNotificationChannel()
                                 notificationHelper.sendNewChangesetsNotification(newCount)
                             }
 

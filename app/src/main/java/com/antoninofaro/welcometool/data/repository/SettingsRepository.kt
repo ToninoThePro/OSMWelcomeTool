@@ -24,18 +24,17 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 data class AppSettings(
     val darkMode: Boolean = false,
     val autoRefresh: Boolean = true,
-    val autoRefreshInterval: Int = 30, // minuti
+    val autoRefreshInterval: Int = 30,
     val defaultBBox: String = Constants.ITALY_BBOX,
     val defaultAreaName: String = Constants.DEFAULT_AREA_NAME,
     val showNotifications: Boolean = true,
     val minChangesetsFilter: Int = 0,
-    // TODO: collegare questa flag al comportamento runtime della cache utente/rete.
     val cacheEnabled: Boolean = true,
     val osmchaToken: String = "",
-    val osmchaChangesetsLimit: Int = 100, // numero massimo di changeset da controllare
+    val osmchaChangesetsLimit: Int = 100,
     val lastKnownChangesetId: Long = 0L,
     val monitoringAreas: List<MonitoringArea> = defaultMonitoringAreas(),
-    val debugLogsEnabled: Boolean = false // Cattura log Timber in memoria
+    val debugLogsEnabled: Boolean = false
 )
 
 data class MonitoringArea(
@@ -81,7 +80,7 @@ class SettingsRepository @Inject constructor(
             showNotifications = preferences[SHOW_NOTIFICATIONS] ?: true,
             minChangesetsFilter = preferences[MIN_CHANGESETS_FILTER] ?: 0,
             cacheEnabled = preferences[CACHE_ENABLED] ?: true,
-            osmchaToken = secureTokenStorage.getOsmchaToken(), // Read from secure storage
+            osmchaToken = secureTokenStorage.getOsmchaToken(),
             osmchaChangesetsLimit = preferences[OSMCHA_CHANGESETS_LIMIT] ?: 100,
             lastKnownChangesetId = preferences[LAST_KNOWN_CHANGESET_ID] ?: 0L,
             monitoringAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON]),
@@ -209,7 +208,6 @@ class SettingsRepository @Inject constructor(
         dataStore.edit { preferences ->
             preferences.clear()
         }
-        // Also clear secure token storage
         secureTokenStorage.clearOsmchaToken()
     }
 }
