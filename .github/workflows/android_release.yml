@@ -36,7 +36,7 @@ jobs:
     runs-on: ${{ fromJson(needs.check-runner.outputs.runner) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
