@@ -39,7 +39,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -218,15 +217,15 @@ private fun SettingsScreenContent(
                 onValueChange = { text ->
                     minChangesText = text
                     text.toIntOrNull()?.let { v ->
-                        if (v in 1..500) onMinChangesetsFilterChange(v)
+                        if (v >= 0) onMinChangesetsFilterChange(v)
                     }
                 },
                 label = { Text("Modifiche Minime") },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 singleLine = true,
-                isError = minChangesText.toIntOrNull()?.let { it !in 0..500 } ?: (minChangesText.isNotEmpty()),
+                isError = minChangesText.toIntOrNull()?.let { it < 0 } ?: (minChangesText.isNotEmpty()),
                 supportingText = {
-                    Text(minChangesText.toIntOrNull()?.let { if (it in 0..500) "Mostra utenti con almeno $it modifiche" else "Massimo 500 modifiche" } ?: "Massimo 500 modifiche")
+                    Text(minChangesText.toIntOrNull()?.let { if (it >= 0) "Mostra utenti con almeno $it modifiche" else "Valore non valido" } ?: "Inserisci un numero")
                 }
             )
 
@@ -445,13 +444,22 @@ private fun SettingsScreenContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            SettingsSliderItem(
-                title = "Changeset da Controllare",
-                description = "${settings.osmchaChangesetsLimit} changeset",
-                value = settings.osmchaChangesetsLimit.toFloat(),
-                valueRange = 10f..500f,
-                steps = 49,
-                onValueChange = { onOsmchaChangesetsLimitChange(it.toInt()) }
+            var changesetLimitText by remember(settings.osmchaChangesetsLimit) { mutableStateOf(settings.osmchaChangesetsLimit.toString()) }
+            OutlinedTextField(
+                value = changesetLimitText,
+                onValueChange = { text ->
+                    changesetLimitText = text
+                    text.toIntOrNull()?.let { v ->
+                        if (v in 1..500) onOsmchaChangesetsLimitChange(v)
+                    }
+                },
+                label = { Text("Changeset da Controllare") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                singleLine = true,
+                isError = changesetLimitText.toIntOrNull()?.let { it !in 1..500 } ?: (changesetLimitText.isNotEmpty()),
+                supportingText = {
+                    Text(changesetLimitText.toIntOrNull()?.let { if (it in 1..500) "$it changeset" else "Limite 1-500" } ?: "Limite 1-500")
+                }
             )
 
             HorizontalDivider()
@@ -677,40 +685,6 @@ fun SettingsToggleItem(
             )
         }
     )
-}
-
-@Composable
-fun SettingsSliderItem(
-    title: String,
-    description: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    onValueChange: (Float) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps
-        )
-    }
 }
 
 @Composable
