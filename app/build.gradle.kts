@@ -66,75 +66,75 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
-    implementation("androidx.compose.runtime:runtime")
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.navigation:navigation-compose:2.9.7")
+    implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.navigation.compose)
 
     // Hilt Dependency Injection
-    implementation("com.google.dagger:hilt-android:2.59.2")
-    implementation("androidx.hilt:hilt-common:1.3.0")
-    implementation("androidx.hilt:hilt-navigation-compose:1.3.0")
-    implementation("androidx.hilt:hilt-work:1.3.0")
-    ksp("com.google.dagger:hilt-compiler:2.59.2")
-    ksp("androidx.hilt:hilt-compiler:1.3.0")
+    implementation(libs.hilt.android)
+    implementation(libs.androidx.hilt.common)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
 
     // WorkManager
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation(libs.androidx.work.runtime.ktx)
 
     // DataStore
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation(libs.androidx.datastore.preferences)
 
     // Security - Encrypted Storage
-    implementation("androidx.security:security-crypto:1.1.0")
+    implementation(libs.androidx.security.crypto)
 
     // Networking
-    implementation("com.squareup.retrofit2:retrofit:3.0.0")
-    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
-    implementation("com.squareup.okhttp3:okhttp:5.3.2")
-    implementation("com.squareup.okhttp3:logging-interceptor:5.3.2")
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.okhttp)
+    implementation(libs.logging.interceptor)
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation(libs.kotlinx.coroutines.android)
 
     // Logging
-    implementation("com.jakewharton.timber:timber:5.0.1")
+    implementation(libs.timber)
 
     // Image Loading (Coil 3)
-    implementation("io.coil-kt.coil3:coil-compose:3.4.0")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
 
     // AboutLibraries - license detection
     implementation(libs.aboutlibraries.compose.m3)
 
     // Testing
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
-    testImplementation("com.google.truth:truth:1.4.5")
-    testImplementation("org.mockito:mockito-core:5.23.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
-    testImplementation("androidx.arch.core:core-testing:2.2.0")
-    testImplementation("androidx.test:core:1.7.0")
-    testImplementation("androidx.test.ext:junit-ktx:1.3.0")
-    testImplementation("androidx.work:work-testing:2.11.2")
-    testImplementation("com.google.dagger:hilt-android-testing:2.59.2")
-    kspTest("com.google.dagger:hilt-compiler:2.59.2")
-    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.truth)
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.androidx.core.testing)
+    testImplementation(libs.androidx.core)
+    testImplementation(libs.androidx.junit.ktx)
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
+    testImplementation(libs.robolectric)
 
     // Android Testing
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2026.03.01"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.59.2")
-    kspAndroidTest("com.google.dagger:hilt-compiler:2.59.2")
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
+    kspAndroidTest(libs.hilt.compiler)
 
     // Debug
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 

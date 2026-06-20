@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 class SetDataStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-    private val keyName: String
+    keyName: String
 ) {
     private val key = stringSetPreferencesKey(keyName)
 
