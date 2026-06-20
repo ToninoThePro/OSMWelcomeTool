@@ -2,12 +2,13 @@ package com.antoninofaro.welcometool.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
 import com.antoninofaro.welcometool.data.repository.NominatimRepository
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
+import com.antoninofaro.welcometool.data.repository.OsmChaRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
-import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.utils.LogCaptureTree
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,12 +19,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+sealed interface TokenVerificationState {
+    data object Idle : TokenVerificationState
+    data object Verifying : TokenVerificationState
+    data class Success(val username: String) : TokenVerificationState
+    data class Error(val message: String) : TokenVerificationState
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val nominatimRepository: NominatimRepository,
     private val notifiedUserStorage: NotifiedUserStorage,
-    private val logCaptureTree: LogCaptureTree
+    private val logCaptureTree: LogCaptureTree,
+    private val osmChaRepository: OsmChaRepository
 ) : ViewModel() {
 
     private val _nominatimResults = MutableStateFlow<List<MonitoringArea>>(emptyList())
@@ -34,6 +43,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _areaSearchError = MutableStateFlow<String?>(null)
     val areaSearchError: StateFlow<String?> = _areaSearchError.asStateFlow()
+
+    private val _tokenVerification = MutableStateFlow<TokenVerificationState>(TokenVerificationState.Idle)
+    val tokenVerification: StateFlow<TokenVerificationState> = _tokenVerification.asStateFlow()
 
     val settings: StateFlow<AppSettings> = settingsRepository.settingsFlow
         .stateIn(
@@ -124,6 +136,18 @@ class SettingsViewModel @Inject constructor(
     fun updateOsmchaToken(token: String) {
         viewModelScope.launch {
             settingsRepository.updateOsmchaToken(token)
+            if (token.isBlank()) {
+                _tokenVerification.value = TokenVerificationState.Idle
+                return@launch
+            }
+            _tokenVerification.value = TokenVerificationState.Verifying
+            _tokenVerification.value = when (val result = osmChaRepository.verifyToken()) {
+                is Result.Success -> TokenVerificationState.Success(result.data)
+                is Result.Error -> TokenVerificationState.Error(
+                    result.message ?: "Token non valido o errore di connessione"
+                )
+                is Result.Loading -> TokenVerificationState.Verifying
+            }
         }
     }
 

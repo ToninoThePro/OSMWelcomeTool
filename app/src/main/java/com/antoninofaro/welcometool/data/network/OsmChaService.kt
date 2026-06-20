@@ -9,11 +9,18 @@ interface OsmChaService {
     suspend fun getUserChangesets(
         @Query("users") username: String
     ): OsmChaResponse
+
+    @GET("users/")
+    suspend fun getCurrentUser(): OsmChaUserResponse
 }
 
 data class OsmChaResponse(
     val count: Int,
     val features: List<OsmChaFeature>
+)
+
+data class OsmChaUserResponse(
+    val username: String
 )
 
 data class OsmChaFeature(
