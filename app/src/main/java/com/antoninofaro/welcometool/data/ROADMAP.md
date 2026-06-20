@@ -1,10 +1,6 @@
-# Roadmap Dati & Networking
+# Data & Networking Roadmap
 
-Backlog essenziale e allineato alla codebase corrente.
-
-## Priorita attive
-
-- [ ] Gestire rate limiting/retry API OSM in modo esplicito (429, timeout).
-- [ ] Valutare cache runtime guidata da `settings.cacheEnabled` (oggi flag solo salvata).
-- [ ] Migliorare sync incrementale usando `lastKnownChangesetId` dove possibile.
-- [ ] Preparare export semplice utenti accolti (CSV/JSON).
+- [ ] Gestire rate limiting e retry espliciti sulle API OSM (429, timeout)
+- [ ] Collegare `settings.cacheEnabled` alla logica di cache runtime (oggi flag solo persistita)
+- [ ] Sync incrementale usando `lastKnownChangesetId`
+- [ ] Export utenti accolti (CSV/JSON)

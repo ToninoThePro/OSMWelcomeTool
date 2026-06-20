@@ -49,7 +49,7 @@ Android app that monitors OpenStreetMap changesets in configurable areas, identi
 ### `data/local/`
 | File | Role |
 |------|------|
-| `AppDatabase.kt` | Room DB (version 1): `UserEntity` + `UserAreaActivityEntity`. `fallbackToDestructiveMigration(false)`. Singleton via double-checked locking. |
+| `AppDatabase.kt` | Room DB (version 1): `UserEntity` + `UserAreaActivityEntity`. `fallbackToDestructiveMigration(true)`. Singleton via double-checked locking. |
 | `UserDao.kt` | Room DAO: `insertUser`, `insertUsers`, `insertUserAreaActivities`, `getUserById`, `getUserIdsForBBox`, `getUserCountForBBox`, `getUsersForBBoxPage` (paginated join query sorted by lastChangesetDate DESC), `searchUsersForBBox` (LIKE on displayName), `observeAllUsers` (Flow), `updateWelcomedStatus`, `deleteAllUsers`. |
 | `UserAreaActivityWithUser.kt` | `@Embedded UserEntity` + bbox + lastChangesetDate + lastChangesetId + areaLastUpdated. Result type for JOIN queries. |
 
@@ -61,14 +61,14 @@ Android app that monitors OpenStreetMap changesets in configurable areas, identi
 | `NominatimRepository.kt` | Wraps `NominatimApiService`. `searchAreas(query)` → `Result<List<MonitoringArea>>`. Converts Nominatim [south,north,west,east] to OSM [west,south,east,north] bbox format. |
 | `SettingsRepository.kt` | DataStore<Preferences> "settings". Exposes `settingsFlow: Flow<AppSettings>`. Individual `updateXxx()` methods for each field. OSMCha token handled via `SecureTokenStorage` with normalization. `AppSettings` data class contains: darkMode, autoRefresh, autoRefreshInterval, defaultBBox, defaultAreaName, showNotifications, minChangesetsFilter, cacheEnabled, osmchaToken, osmchaChangesetsLimit, lastKnownChangesetId, monitoringAreas, debugLogsEnabled. |
 | `NotifiedUserStorage.kt` | Thin wrapper over `SetDataStore` with key "notified_ids". Methods: `isNotified`, `markAsNotified`, `markAsNotifiedBatch`, `getAllNotifiedIds`, `removeNotified`, `clearAll`. |
-| `WelcomedUserStorage.kt` | Thin wrapper over `SetDataStore` with key "welcomed_ids". Methods: `isWelcomed`, `setWelcomed`, `getWelcomedCount`, `getAllWelcomedIds`, `clearAll`. |
+| `WelcomedUserStorage.kt` | Thin wrapper over `SetDataStore` with key "welcomed_ids". Methods: `isWelcomed`, `setWelcomed`, `getAllWelcomedIds`. |
 | `SetDataStore.kt` | Generic `Set<String>` persistence over DataStore. Constructor takes `DataStore<Preferences>` + `keyName`. Methods: `flow`, `getAll`, `contains`, `add`, `addAll`, `remove`, `clear`. |
 | `SecureTokenStorage.kt` | EncryptedSharedPreferences for OSMCha token. Methods: `saveOsmchaToken`, `getOsmchaToken`, `clearOsmchaToken`, `hasOsmchaToken`. Falls back to plain SharedPreferences if encryption setup fails. Has `injectTestPrefs()` for test injection. |
 
 ### `domain/`
 | File | Role |
 |------|------|
-| `UserAnalyzer.kt` | Pure stateless object. `analyze(user, userChangesets, recentChangeset, osmchaLikes, osmchaDislikes, now)` → `UserAnalysis`. Thresholds: newcomer = accountAge < 60 days, powerUser = totalEdits > 1000, returning = accountAge > 365 days AND totalEdits < 300. Uses `ThreadLocal<SimpleDateFormat>` for ISO date parsing. |
+| `UserAnalyzer.kt` | Pure stateless object. `analyze(user, userChangesets, recentChangeset, osmchaLikes, osmchaDislikes, now)` → `UserAnalysis`. Thresholds: newcomer = accountAge < 60 days, powerUser = totalEdits > 1000, returning = accountAge > 365 days AND totalEdits < 300. Uses thread-local `SimpleDateFormat` for ISO date parsing. |
 
 ### `worker/`
 | File | Role |
@@ -82,7 +82,7 @@ Android app that monitors OpenStreetMap changesets in configurable areas, identi
 | `Constants.kt` | `DEFAULT_AREA_NAME = "Italia"`, `ITALY_BBOX = "6.6,35.3,18.6,47.2"`. |
 | `WorkerUtils.kt` | `scheduleOsmSyncWorker(context, intervalMinutes, enabled)` — enqueue/cancel `PeriodicWorkRequest<OsmSyncWorker>` with `NetworkType.CONNECTED` + battery/storage constraints. Minimum interval clamped to 15 min (WorkManager limit). |
 | `NotificationHelper.kt` | `@Singleton`. `createNotificationChannel()` (channel "osm_updates_channel"), `sendNewChangesetsNotification(newCount)` with PendingIntent to MainActivity. Checks `POST_NOTIFICATIONS` permission on API 33+. |
-| `LogCapture.kt` | `LogCaptureTree` (`@Singleton`, extends `Timber.Tree`) — ring buffer of 500 `LogEntry`s, toggleable via `setEnabled()`. Methods: `clearLogs`, `exportLogs`. Plants in `WelcomeToolApplication.onCreate`. |
+| `LogCapture.kt` | `LogCaptureTree` (`@Singleton`, extends `Timber.Tree`) — ring buffer of 500 `LogEntry`s, toggleable via `setEnabled()`. Plants in `WelcomeToolApplication.onCreate`. |
 | `AvatarUtils.kt` | `getGravatarUrl(displayName, size)` → MD5 hash of `$normalizedName@openstreetmap.org` → Gravatar URL. `getProfileImageUrl(osmImageUrl, displayName, size)` — prioritizes OSM image, falls back to Gravatar. |
 
 ### `di/`

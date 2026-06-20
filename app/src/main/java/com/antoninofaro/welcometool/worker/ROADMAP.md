@@ -1,10 +1,6 @@
-# Roadmap Task in Background & Sistema
+# Workers & System Roadmap
 
-Backlog operativo concentrato sui worker esistenti.
-
-## Priorita attive
-
-- [ ] Aggiungere trigger manuale "sincronizza ora" (OneTimeWorkRequest).
-- [ ] Migliorare telemetria errori worker (es. distinzione auth/network/parsing).
-- [ ] Introdurre deep link da notifica a `user_detail/{userId}` quando disponibile.
-- [ ] Valutare policy energetiche alternative mantenendo limite minimo 15 minuti.
+- [ ] Trigger manuale "sincronizza ora" (OneTimeWorkRequest)
+- [ ] Telemetria errori worker (distinguere auth/network/parsing)
+- [ ] Deep link da notifica a `user_detail/{userId}`
+- [ ] Valutare policy energetiche alternative (limite minimo 15 minuti invariato)

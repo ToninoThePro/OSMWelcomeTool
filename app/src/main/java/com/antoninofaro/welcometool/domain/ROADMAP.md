@@ -1,10 +1,6 @@
-# Roadmap Logica di Business & Analisi Utente
+# Domain & Business Logic Roadmap
 
-Backlog compatto per evoluzioni del dominio senza alterare le soglie correnti.
-
-## Priorita attive
-
-- [ ] Rendere configurabili le soglie di `UserAnalyzer` mantenendo i default README.
-- [ ] Aggiungere un flag di rischio base (es. molti dislike OSMCha in poco tempo).
-- [ ] Introdurre filtri testuali opzionali sulla bio utente.
-- [ ] Definire template semplici per messaggi di benvenuto suggeriti.
+- [ ] Rendere configurabili le soglie di `UserAnalyzer` (mantenendo i default correnti)
+- [ ] Aggiungere flag di rischio (es. molti dislike OSMCha in breve tempo)
+- [ ] Filtri testuali opzionali sulla bio utente
+- [ ] Template per messaggi di benvenuto suggeriti
