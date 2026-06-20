@@ -39,6 +39,7 @@ data class LogEntry(
         }
     }
 
+    @Synchronized
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
         // Non catturare se disattivato
         if (!captureEnabled) return

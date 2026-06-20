@@ -13,7 +13,6 @@ import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.model.UserImage
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
-import com.antoninofaro.welcometool.di.WelcomedDataStore
 import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.domain.UserAnalyzer
 import com.antoninofaro.welcometool.utils.Constants
