@@ -1,5 +1,6 @@
 package com.antoninofaro.welcometool.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -7,6 +8,7 @@ import androidx.room.PrimaryKey
 data class UserEntity(
     @PrimaryKey
     val id: Long,
+    @ColumnInfo(index = true)
     val displayName: String,
     val accountCreated: String,
     val description: String?,

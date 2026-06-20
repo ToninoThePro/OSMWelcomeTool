@@ -22,14 +22,14 @@ class OsmChaRepositoryTest {
     @Mock
     private lateinit var settingsRepository: SettingsRepository
 
-    private lateinit var repository: OsmChaRepositoryImpl
+    private lateinit var repository: OsmChaRepository
 
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
         // Mock the settings flow to return default AppSettings
         `when`(settingsRepository.settingsFlow).thenReturn(flowOf(AppSettings()))
-        repository = OsmChaRepositoryImpl(osmChaService, settingsRepository)
+        repository = OsmChaRepository(osmChaService, settingsRepository)
     }
 
     @Test

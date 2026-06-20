@@ -20,6 +20,7 @@ import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.whenever
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.eq
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NewUserWorkerLogicTest {
@@ -83,7 +84,7 @@ class NewUserWorkerLogicTest {
     fun testRepositoryInteraction_fetchChangesets() = runTest {
         // Given
         val mockChangesets = listOf(createMockChangeset(1L, 100L, "user1"))
-        whenever(repository.fetchRecentChangesets(any(), anyOrNull(), any()))
+        whenever(repository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
             .thenReturn(Result.Success(mockChangesets))
 
         // When
@@ -201,7 +202,7 @@ class NewUserWorkerLogicTest {
     @Test
     fun testEmptyChangesets_noNotifications() = runTest {
         // Given - nessun changeset
-        whenever(repository.fetchRecentChangesets(any(), anyOrNull(), any()))
+        whenever(repository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
             .thenReturn(Result.Success(emptyList()))
 
         // When

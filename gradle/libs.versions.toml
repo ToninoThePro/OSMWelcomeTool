@@ -32,6 +32,7 @@ security-crypto = "1.1.0"
 timber = "5.0.1"
 truth = "1.4.5"
 work = "2.11.2"
+aboutLibraries = "14.1.0"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -82,4 +83,9 @@ retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = 
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutLibraries" }
+aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutLibraries" }
+
+[plugins]
+aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutLibraries" }
 

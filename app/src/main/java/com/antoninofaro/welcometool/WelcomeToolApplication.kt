@@ -7,8 +7,7 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
-import com.antoninofaro.welcometool.di.ApplicationScope
-import com.antoninofaro.welcometool.utils.LogCaptureManager
+import com.antoninofaro.welcometool.utils.LogCaptureTree
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,14 +24,12 @@ class WelcomeToolApplication : Application(), Configuration.Provider {
     lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
-    lateinit var logCaptureManager: LogCaptureManager
+    lateinit var logCaptureTree: LogCaptureTree
 
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
-    @Inject
-    @ApplicationScope
-    lateinit var appScope: CoroutineScope
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -48,11 +45,10 @@ class WelcomeToolApplication : Application(), Configuration.Provider {
             Timber.plant(Timber.DebugTree())
         }
 
-        // Pianta il LogCaptureTree per catturare i log in memoria
-        Timber.plant(logCaptureManager.getLogCaptureTree())
+        Timber.plant(logCaptureTree)
 
         appScope.launch {
-            logCaptureManager.setEnabled(settingsRepository.settingsFlow.first().debugLogsEnabled)
+            logCaptureTree.setEnabled(settingsRepository.settingsFlow.first().debugLogsEnabled)
         }
 
         Timber.d("WelcomeToolApplication initialized")

@@ -16,25 +16,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.antoninofaro.welcometool.ui.screens.DebugLogsScreen
 import com.antoninofaro.welcometool.ui.screens.MainViewModel
+import com.antoninofaro.welcometool.ui.screens.LicensesScreen
 import com.antoninofaro.welcometool.ui.screens.SettingsScreen
 import com.antoninofaro.welcometool.ui.screens.SettingsViewModel
 import com.antoninofaro.welcometool.ui.screens.UserDetailScreen
 import com.antoninofaro.welcometool.ui.screens.UserListScreen
 import com.antoninofaro.welcometool.ui.theme.WelcomeToolTheme
-import com.antoninofaro.welcometool.utils.LogCaptureManager
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
-
-    @Inject
-    lateinit var logCaptureManager: LogCaptureManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +55,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation(viewModel, settingsViewModel, logCaptureManager)
+                    AppNavigation(viewModel, settingsViewModel)
                 }
             }
         }
@@ -70,8 +65,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(
     viewModel: MainViewModel,
-    settingsViewModel: SettingsViewModel,
-    logCaptureManager: LogCaptureManager
+    settingsViewModel: SettingsViewModel
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
@@ -124,14 +118,13 @@ fun AppNavigation(
             SettingsScreen(
                 viewModel = settingsViewModel,
                 onNavigateUp = { navController.navigateUp() },
-                onNavigateToDebugLogs = { navController.navigate("debug_logs") }
+                onNavigateToLicenses = { navController.navigate("licenses") }
             )
         }
 
-        composable("debug_logs") {
-            DebugLogsScreen(
-                logCaptureManager = logCaptureManager,
-                onNavigateBack = { navController.navigateUp() }
+        composable("licenses") {
+            LicensesScreen(
+                onNavigateUp = { navController.navigateUp() }
             )
         }
     }

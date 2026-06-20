@@ -2,7 +2,6 @@ package com.antoninofaro.welcometool.di
 
 import android.content.Context
 import com.antoninofaro.welcometool.data.local.AppDatabase
-import com.antoninofaro.welcometool.data.local.UserLocalRepository
 import com.antoninofaro.welcometool.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
@@ -24,8 +23,4 @@ object DatabaseModule {
     @Provides
     fun provideUserDao(appDatabase: AppDatabase) = appDatabase.userDao()
 
-    @Singleton
-    @Provides
-    fun provideUserLocalRepository(userDao: UserDao): UserLocalRepository =
-        UserLocalRepository(userDao)
 }

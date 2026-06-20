@@ -10,13 +10,20 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.antoninofaro.welcometool.R
+import com.antoninofaro.welcometool.data.model.OsmChangeset
+import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.domain.UserAnalyzer
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import timber.log.Timber
 import com.antoninofaro.welcometool.data.model.Result as ApiResult
 
@@ -54,32 +61,20 @@ class NewUserWorker @AssistedInject constructor(
             val uniqueUids = changesets.map { it.uid }.distinct()
             val notifiedIds = notifiedUserStorage.getAllNotifiedIds()
             val newlyNotified = LinkedHashSet<Long>()
+            val changesetsByUid = changesets.associateBy { it.uid } // ponytail: built once, O(n) instead of O(n*m)
+            val semaphore = Semaphore(6)
 
-            for (uid in uniqueUids) {
-                if (notifiedIds.contains(uid.toString())) {
-                    continue
-                }
-
-                val user = when (val userResult = repository.fetchUserDetail(uid)) {
-                    is ApiResult.Success -> userResult.data
-                    is ApiResult.Error -> continue
-                    is ApiResult.Loading -> continue
-                }
-
-                val userHistory = when (val historyResult = repository.fetchUserChangesets(uid)) {
-                    is ApiResult.Success -> historyResult.data
-                    is ApiResult.Error -> emptyList()
-                    is ApiResult.Loading -> emptyList()
-                }
-
-                val recentCs = changesets.find { it.uid == uid }
-                val analysis = UserAnalyzer.analyze(user, userHistory, recentCs)
-
-                if (analysis.isNewcomer) {
-                    sendNotification(user.displayName, settings.defaultAreaName)
-                    newlyNotified.add(uid)
-                    Timber.d("Notification sent for new mapper")
-                }
+            coroutineScope {
+                val results = uniqueUids
+                    .filterNot { notifiedIds.contains(it.toString()) }
+                    .map { uid ->
+                        async {
+                            semaphore.withPermit {
+                                processUser(uid, changesetsByUid, settings)
+                            }
+                        }
+                    }
+                results.awaitAll().filterNotNull().forEach { newlyNotified.add(it) }
             }
 
             notifiedUserStorage.markAsNotifiedBatch(newlyNotified)
@@ -89,6 +84,35 @@ class NewUserWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Error in NewUserWorker")
             return androidx.work.ListenableWorker.Result.retry()
+        }
+    }
+
+    private suspend fun processUser(
+        uid: Long,
+        changesetsByUid: Map<Long, OsmChangeset>,
+        settings: AppSettings
+    ): Long? = coroutineScope {
+        val userDeferred = async { repository.fetchUserDetail(uid) }
+        val historyDeferred = async { repository.fetchUserChangesets(uid) }
+
+        val user = when (val r = userDeferred.await()) {
+            is ApiResult.Success -> r.data
+            else -> return@coroutineScope null
+        }
+        val userHistory = when (val r = historyDeferred.await()) {
+            is ApiResult.Success -> r.data
+            else -> emptyList()
+        }
+
+        val recentCs = changesetsByUid[uid]
+        val analysis = UserAnalyzer.analyze(user, userHistory, recentCs)
+
+        if (analysis.isNewcomer) {
+            sendNotification(user.displayName, settings.defaultAreaName)
+            Timber.d("Notification sent for new mapper: ${user.displayName}")
+            uid
+        } else {
+            null
         }
     }
 

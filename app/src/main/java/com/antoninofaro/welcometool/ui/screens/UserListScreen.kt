@@ -118,6 +118,17 @@ fun UserListScreen(
                     }
                 )
                 FilterChip(
+                    selected = uiState.filterIsReturning,
+                    onClick = { viewModel.toggleReturningFilter() },
+                    label = { Text("Ritornati") },
+                    leadingIcon = {
+                        if (uiState.filterIsReturning) Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Selezionato"
+                        ) else null
+                    }
+                )
+                FilterChip(
                     selected = uiState.filterIsPowerUser,
                     onClick = { viewModel.togglePowerUserFilter() },
                     label = { Text(stringResource(R.string.power_users)) },
@@ -229,7 +240,7 @@ fun UserListScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserListItem(
+private fun UserListItem(
     user: OsmUser,
     analysis: UserAnalysis,
     onClick: (OsmUser, UserAnalysis) -> Unit

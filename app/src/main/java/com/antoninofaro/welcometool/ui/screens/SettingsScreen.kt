@@ -1,5 +1,6 @@
 package com.antoninofaro.welcometool.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -59,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.antoninofaro.welcometool.BuildConfig
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
+import com.antoninofaro.welcometool.data.repository.normalizeOsmchaToken
 import com.antoninofaro.welcometool.ui.theme.WelcomeToolTheme
 
 private const val OSMCHA_TOKEN_EXPECTED_LENGTH = 40
@@ -68,7 +71,7 @@ private const val OSMCHA_TOKEN_EXPECTED_LENGTH = 40
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateUp: () -> Unit,
-    onNavigateToDebugLogs: () -> Unit = {}
+    onNavigateToLicenses: () -> Unit
 ) {
     val settings by viewModel.settings.collectAsState()
     val nominatimResults by viewModel.nominatimResults.collectAsState()
@@ -80,7 +83,7 @@ fun SettingsScreen(
         isSearchingAreas = isSearchingAreas,
         areaSearchError = areaSearchError,
         onNavigateUp = onNavigateUp,
-        onNavigateToDebugLogs = onNavigateToDebugLogs,
+        onNavigateToLicenses = onNavigateToLicenses,
         onDarkModeChange = viewModel::updateDarkMode,
         onAutoRefreshChange = viewModel::updateAutoRefresh,
         onAutoRefreshIntervalChange = viewModel::updateAutoRefreshInterval,
@@ -108,7 +111,7 @@ private fun SettingsScreenContent(
     isSearchingAreas: Boolean,
     areaSearchError: String?,
     onNavigateUp: () -> Unit,
-    onNavigateToDebugLogs: () -> Unit = {},
+    onNavigateToLicenses: () -> Unit,
     onDarkModeChange: (Boolean) -> Unit,
     onAutoRefreshChange: (Boolean) -> Unit,
     onAutoRefreshIntervalChange: (Int) -> Unit,
@@ -450,6 +453,15 @@ private fun SettingsScreenContent(
                 description = "${settings.defaultAreaName} (${settings.defaultBBox})"
             )
 
+            ListItem(
+                headlineContent = { Text("Licenze") },
+                supportingContent = { Text("Librerie e licenze utilizzate") },
+                leadingContent = {
+                    Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                },
+                modifier = Modifier.clickable(onClick = onNavigateToLicenses)
+            )
+
             HorizontalDivider()
 
             SettingsSectionHeader(title = "LOG E DIAGNOSTICA")
@@ -462,20 +474,7 @@ private fun SettingsScreenContent(
                 onCheckedChange = onDebugLogsEnabledChange
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            OutlinedButton(
-                onClick = onNavigateToDebugLogs,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Icon(Icons.Default.Info, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Visualizza Log in tempo reale")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Pulsante Reset
             OutlinedButton(
@@ -551,7 +550,7 @@ private fun SettingsScreenPreview() {
             isSearchingAreas = false,
             areaSearchError = null,
             onNavigateUp = {},
-            onNavigateToDebugLogs = {},
+            onNavigateToLicenses = {},
             onDarkModeChange = {},
             onAutoRefreshChange = {},
             onAutoRefreshIntervalChange = {},
@@ -709,15 +708,5 @@ fun SettingsInfoItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(description, style = MaterialTheme.typography.bodySmall) }
     )
-}
-
-private fun normalizeOsmchaToken(rawToken: String): String {
-    val trimmed = rawToken.trim()
-    val withoutPrefix = if (trimmed.startsWith("Token ", ignoreCase = true)) {
-        trimmed.substringAfter(' ', missingDelimiterValue = trimmed).trimStart()
-    } else {
-        trimmed
-    }
-    return withoutPrefix.filterNot { it.isWhitespace() }
 }
 

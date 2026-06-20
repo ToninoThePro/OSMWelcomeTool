@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antoninofaro.welcometool.data.entity.UserEntity
 import com.antoninofaro.welcometool.data.entity.UserAreaActivityEntity
-import com.antoninofaro.welcometool.data.local.UserLocalRepository
+import com.antoninofaro.welcometool.data.local.dao.UserDao
 import com.antoninofaro.welcometool.data.local.model.UserAreaActivityWithUser
 import com.antoninofaro.welcometool.data.model.CountWrapper
 import com.antoninofaro.welcometool.data.model.OsmChangeset
@@ -13,6 +13,7 @@ import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.model.UserImage
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
+import com.antoninofaro.welcometool.di.WelcomedDataStore
 import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.domain.UserAnalyzer
 import com.antoninofaro.welcometool.utils.Constants
@@ -49,6 +50,7 @@ data class MainUiState(
     val searchTerm: String = "",
     val minChanges: Int = 0,
     val filterIsNewcomer: Boolean = false,
+    val filterIsReturning: Boolean = false,
     val filterIsPowerUser: Boolean = false
 )
 
@@ -63,7 +65,7 @@ class MainViewModel @Inject constructor(
     private val repository: OsmRepository,
     private val welcomedUserStorage: WelcomedUserStorage,
     private val osmChaRepository: com.antoninofaro.welcometool.data.repository.OsmChaRepository,
-    private val localRepository: UserLocalRepository,
+    private val userDao: UserDao,
 ) : ViewModel() {
 
     companion object {
@@ -113,12 +115,10 @@ class MainViewModel @Inject constructor(
                 val pageUsers = loadLocalUsersPage(selectedBBox, currentPageOffset)
 
                 if (pageUsers.isNotEmpty() && !forceRefresh) {
-                    val totalCount = localRepository.getUserCountForBBox(selectedBBox)
                     _uiState.value = _uiState.value.copy(
                         users = pageUsers,
                         filteredUsers = pageUsers,
-                        hasReachedEnd = pageUsers.size < LOCAL_PAGE_SIZE ||
-                            currentPageOffset + pageUsers.size >= totalCount
+                        hasReachedEnd = pageUsers.size < LOCAL_PAGE_SIZE
                     )
                     applyFilters()
                     return@launch
@@ -127,7 +127,6 @@ class MainViewModel @Inject constructor(
                 syncRecentUsersForCurrentBBox(selectedBBox)
 
                 val refreshedUsers = loadLocalUsersPage(selectedBBox, currentPageOffset)
-                val totalCount = localRepository.getUserCountForBBox(selectedBBox)
 
                 if (refreshedUsers.isEmpty()) {
                     loadCachedUsersOrShowError(selectedBBox, "Nessun utente recuperato")
@@ -137,8 +136,7 @@ class MainViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     users = refreshedUsers,
                     filteredUsers = refreshedUsers,
-                    hasReachedEnd = refreshedUsers.size < LOCAL_PAGE_SIZE ||
-                        currentPageOffset + refreshedUsers.size >= totalCount
+                    hasReachedEnd = refreshedUsers.size < LOCAL_PAGE_SIZE
                 )
                 applyFilters()
 
@@ -197,7 +195,7 @@ class MainViewModel @Inject constructor(
                 .filterNot { seenUserIds.contains(it) }
 
             if (newUids.isNotEmpty()) {
-                val changesetsByUid = changesets.reversed().associateBy { it.uid }
+                val changesetsByUid = changesets.associateBy { it.uid } // ponytail: no reversed() needed, UIDs are unique per scan window
                 val processedBatch = kotlinx.coroutines.coroutineScope {
                     val deferredResults = newUids.map { uid ->
                         async {
@@ -216,10 +214,10 @@ class MainViewModel @Inject constructor(
                     val areaActivitiesToPersist = processedBatch.mapNotNull { it.areaActivityToPersist }
 
                     if (usersToPersist.isNotEmpty()) {
-                        localRepository.saveUsers(usersToPersist)
+                        userDao.insertUsers(usersToPersist)
                     }
                     if (areaActivitiesToPersist.isNotEmpty()) {
-                        localRepository.saveUserAreaActivities(areaActivitiesToPersist)
+                        userDao.insertUserAreaActivities(areaActivitiesToPersist)
                     }
                 }
             }
@@ -240,7 +238,7 @@ class MainViewModel @Inject constructor(
     }
 
     private suspend fun loadLocalUsersPage(bbox: String, offset: Int): List<UserUiModel> {
-        return localRepository.getUsersForBBoxPage(bbox, LOCAL_PAGE_SIZE, offset)
+        return userDao.getUsersForBBoxPage(bbox, LOCAL_PAGE_SIZE, offset)
             .map { it.toUiModel() }
             .let(::sortUsersByAreaActivity)
     }
@@ -249,8 +247,9 @@ class MainViewModel @Inject constructor(
         return cursorEnd?.let { "$OSM_EPOCH_START,$it" }
     }
 
+    // ponytail: API returns changesets in reverse-chronological order, so lastOrNull gives the oldest
     private fun computeOlderCursor(changesets: List<OsmChangeset>): String? {
-        return changesets.minByOrNull { it.createdAt }?.createdAt
+        return changesets.lastOrNull()?.createdAt
     }
 
     private suspend fun loadCachedUsersOrShowError(bbox: String, fallbackErrorMessage: String) {
@@ -283,7 +282,7 @@ class MainViewModel @Inject constructor(
         // TODO: applicare la preferenza settings.cacheEnabled per bypassare la cache quando disattivata.
         // Check local cache first to avoid redundant network requests
         // But refresh if older than 24 hours
-        val cachedUser = localRepository.getUserById(uid)
+        val cachedUser = userDao.getUserById(uid)
         val isStale = isUserCacheStale(cachedUser)
 
         if (cachedUser != null && !isStale) {
@@ -410,9 +409,7 @@ class MainViewModel @Inject constructor(
 
         viewModelScope.launch {
             val currentUser = _uiState.value.users.find { it.user.id == userId }
-                ?: _uiState.value.filteredUsers.find { it.user.id == userId }
-
-            if (currentUser == null) return@launch
+            if (currentUser == null) return@launch // ponytail: filteredUsers is a subset of users
 
             val (likes, dislikes) = osmChaRepository.getUserOsmChaStats(currentUser.user.displayName)
 
@@ -461,7 +458,7 @@ class MainViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
-                val searchResults = localRepository.searchUsersForBBox(
+                val searchResults = userDao.searchUsersForBBox(
                     _uiState.value.selectedBBox,
                     "%$normalizedQuery%"
                 ).map { it.toUiModel() }
@@ -482,6 +479,7 @@ class MainViewModel @Inject constructor(
                     isLoading = false,
                     searchTerm = normalizedQuery,
                     filterIsNewcomer = false,
+                    filterIsReturning = false,
                     filterIsPowerUser = false
                 )
 
@@ -515,14 +513,12 @@ class MainViewModel @Inject constructor(
                 }
 
                 val mergedUsers = _uiState.value.users + nextPage
-                val totalCount = localRepository.getUserCountForBBox(_uiState.value.selectedBBox)
 
                 currentPageOffset = nextOffset
 
                 _uiState.value = _uiState.value.copy(
                     users = mergedUsers,
-                    hasReachedEnd = nextOffset + nextPage.size >= totalCount ||
-                        nextPage.size < LOCAL_PAGE_SIZE
+                    hasReachedEnd = nextPage.size < LOCAL_PAGE_SIZE
                 )
                 applyFilters()
             } catch (e: Exception) {
@@ -551,6 +547,11 @@ class MainViewModel @Inject constructor(
 
     fun toggleNewcomerFilter() {
         _uiState.value = _uiState.value.copy(filterIsNewcomer = !_uiState.value.filterIsNewcomer)
+        applyFilters()
+    }
+
+    fun toggleReturningFilter() {
+        _uiState.value = _uiState.value.copy(filterIsReturning = !_uiState.value.filterIsReturning)
         applyFilters()
     }
 
@@ -606,11 +607,17 @@ class MainViewModel @Inject constructor(
                 uiModel.user.displayName.contains(normalizedSearchTerm, ignoreCase = true)
             }
             val matchesNewcomer =
-                if (current.filterIsNewcomer) uiModel.analysis.isNewcomer else true
+                if (current.filterIsNewcomer) uiModel.analysis.isNewcomer else false
+            val matchesReturning =
+                if (current.filterIsReturning) uiModel.analysis.isReturning else false
             val matchesPowerUser =
-                if (current.filterIsPowerUser) uiModel.analysis.isPowerUser else true
+                if (current.filterIsPowerUser) uiModel.analysis.isPowerUser else false
+            val anyFilterActive = current.filterIsNewcomer || current.filterIsReturning || current.filterIsPowerUser
+            val matchesCategory = if (anyFilterActive) {
+                matchesNewcomer || matchesReturning || matchesPowerUser
+            } else true
 
-            matchesSearch && matchesNewcomer && matchesPowerUser
+            matchesSearch && matchesCategory
         }
         _uiState.value = current.copy(filteredUsers = filtered)
     }
@@ -618,8 +625,11 @@ class MainViewModel @Inject constructor(
     fun toggleWelcomed(userId: Long, currentStatus: Boolean) {
         viewModelScope.launch {
             welcomedUserStorage.setWelcomed(userId, !currentStatus)
-            localRepository.updateWelcomedStatus(userId, !currentStatus)
-            welcomedIdsCache = null
+            userDao.updateWelcomedStatus(userId, !currentStatus, System.currentTimeMillis())
+            // ponytail: update cache in-place instead of discarding it
+            welcomedIdsCache = welcomedIdsCache?.let {
+                if (!currentStatus) it + userId.toString() else it - userId.toString()
+            }
 
             // Update local state immediately
             val updatedUsers = _uiState.value.users.map { userModel ->
@@ -640,7 +650,7 @@ class MainViewModel @Inject constructor(
     fun refreshUser(userId: Long) {
         viewModelScope.launch {
             // TODO: applicare la preferenza settings.cacheEnabled anche nel refresh puntuale del dettaglio.
-            val cachedUser = localRepository.getUserById(userId)
+            val cachedUser = userDao.getUserById(userId)
             if (cachedUser != null && !isUserCacheStale(cachedUser)) {
                 // Cache fresca: evitiamo roundtrip di rete non necessari quando si apre il dettaglio.
                 return@launch
@@ -666,7 +676,7 @@ class MainViewModel @Inject constructor(
 
             val userEntity = user.toEntity(analysis)
 
-            localRepository.saveUser(userEntity)
+            userDao.insertUser(userEntity)
 
             val updatedModel = userEntity.toUiModel()
 

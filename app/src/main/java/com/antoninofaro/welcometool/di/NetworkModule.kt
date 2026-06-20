@@ -71,11 +71,16 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideOsmChaService(settingsRepository: SettingsRepository): OsmChaService {
+    fun provideOsmChaService(
+        @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context,
+        settingsRepository: SettingsRepository
+    ): OsmChaService {
+        val cache = okhttp3.Cache(java.io.File(context.cacheDir, "osmcha_cache"), CACHE_SIZE)
         val client = OkHttpClient.Builder()
             .connectTimeout(OSMCHA_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(OSMCHA_TIMEOUT, TimeUnit.SECONDS)
             .writeTimeout(OSMCHA_TIMEOUT, TimeUnit.SECONDS)
+            .cache(cache)
             .apply {
                 if (BuildConfig.DEBUG) {
                     val logging = HttpLoggingInterceptor { message ->
@@ -119,11 +124,15 @@ object NetworkModule {
      */
     @Provides
     @Singleton
-    fun provideNominatimApiService(): NominatimApiService {
+    fun provideNominatimApiService(
+        @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context
+    ): NominatimApiService {
+        val cache = okhttp3.Cache(java.io.File(context.cacheDir, "nominatim_cache"), CACHE_SIZE)
         val client = OkHttpClient.Builder()
             .connectTimeout(NOMINATIM_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(NOMINATIM_TIMEOUT, TimeUnit.SECONDS)
             .writeTimeout(NOMINATIM_TIMEOUT, TimeUnit.SECONDS)
+            .cache(cache)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .header(

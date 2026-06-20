@@ -22,14 +22,15 @@ data class LogEntry(
  * LogCapture è un Tree di Timber che cattura tutti i log in memoria.
  * Utile per debug e visualizzazione in-app dei log.
  */
-class LogCaptureTree @Inject constructor() : Timber.Tree() {
+@Singleton class LogCaptureTree @Inject constructor() : Timber.Tree() {
 
     private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
     val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
 
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
-    private val maxLogs = 500 // Mantieni gli ultimi 500 log in memoria
-    private var captureEnabled = false // Flag per attivare/disattivare la cattura
+    private val maxLogs = 500
+    private var captureEnabled = false
+    private val ringBuffer = ArrayDeque<LogEntry>(maxLogs) // ponytail: ring buffer, O(1) append/trim instead of O(n) list copy
 
     fun setEnabled(enabled: Boolean) {
         captureEnabled = enabled
@@ -61,10 +62,13 @@ class LogCaptureTree @Inject constructor() : Timber.Tree() {
             throwable = t
         )
 
-        _logs.value = (_logs.value + entry).takeLast(maxLogs)
+        ringBuffer.addLast(entry)
+        if (ringBuffer.size > maxLogs) ringBuffer.removeFirst()
+        _logs.value = ringBuffer.toList()
     }
 
     fun clearLogs() {
+        ringBuffer.clear()
         _logs.value = emptyList()
     }
 
@@ -76,18 +80,4 @@ class LogCaptureTree @Inject constructor() : Timber.Tree() {
     }
 }
 
-@Singleton
-class LogCaptureManager @Inject constructor(
-    private val logCaptureTree: LogCaptureTree
-) {
-    val logs: StateFlow<List<LogEntry>> = logCaptureTree.logs
-
-    fun getLogCaptureTree(): Timber.Tree = logCaptureTree
-
-    fun setEnabled(enabled: Boolean) = logCaptureTree.setEnabled(enabled)
-
-    fun clearLogs() = logCaptureTree.clearLogs()
-
-    fun exportLogs(): String = logCaptureTree.exportLogs()
-}
 

@@ -42,12 +42,13 @@ class OsmSyncWorker @AssistedInject constructor(
             val lastKnownId = settings.lastKnownChangesetId
             val showNotifications = settings.showNotifications
 
-            val result = osmRepository.fetchRecentChangesets(bbox = bbox)
+            // ponytail: only fetch 1 changeset to check if there are newer ones
+            val result = osmRepository.fetchRecentChangesets(bbox = bbox, limit = 1)
 
             val changesets = result.getOrNull()
             if (changesets != null) {
                 if (changesets.isNotEmpty()) {
-                    val maxId = changesets.maxOf { it.id }
+                    val maxId = changesets.first().id
 
                     if (maxId > lastKnownId) {
                         Timber.d("New changesets found. Max ID: $maxId, Last Known: $lastKnownId")

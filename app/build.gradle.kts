@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    id("com.mikepenz.aboutlibraries.plugin.android")
 }
 
 android {
@@ -107,6 +108,9 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
 
+    // AboutLibraries - license detection
+    implementation(libs.aboutlibraries.compose.m3)
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
@@ -134,17 +138,3 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-// Task aliases per compatibilità con IDE che si aspettano task Java standard
-afterEvaluate {
-    tasks.register("testClasses") {
-        group = "build"
-        description = "Alias task for IDE compatibility"
-        dependsOn(tasks.findByName("compileDebugUnitTestKotlin") ?: tasks.named("test"))
-    }
-
-    tasks.register("classes") {
-        group = "build"
-        description = "Alias task for IDE compatibility"
-        dependsOn(tasks.named("assembleDebug"))
-    }
-}

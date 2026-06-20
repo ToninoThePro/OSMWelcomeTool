@@ -8,7 +8,7 @@ import com.antoninofaro.welcometool.data.repository.NominatimRepository
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.model.Result
-import com.antoninofaro.welcometool.utils.LogCaptureManager
+import com.antoninofaro.welcometool.utils.LogCaptureTree
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,7 +23,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val nominatimRepository: NominatimRepository,
     private val notifiedUserStorage: NotifiedUserStorage,
-    private val logCaptureManager: LogCaptureManager
+    private val logCaptureTree: LogCaptureTree
 ) : ViewModel() {
 
     private val _nominatimResults = MutableStateFlow<List<MonitoringArea>>(emptyList())
@@ -142,7 +142,7 @@ class SettingsViewModel @Inject constructor(
     fun updateDebugLogsEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateDebugLogsEnabled(enabled)
-            logCaptureManager.setEnabled(enabled)
+            logCaptureTree.setEnabled(enabled)
         }
     }
 

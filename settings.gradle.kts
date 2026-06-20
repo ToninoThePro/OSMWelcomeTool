@@ -17,5 +17,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SiciliaWelcomeTool"
+rootProject.name = "OSMWelcomeTool"
 include(":app")

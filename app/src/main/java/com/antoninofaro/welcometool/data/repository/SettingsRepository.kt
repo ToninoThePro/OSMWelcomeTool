@@ -13,13 +13,9 @@ import com.antoninofaro.welcometool.utils.Constants
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,37 +54,7 @@ class SettingsRepository @Inject constructor(
     private val secureTokenStorage: SecureTokenStorage
 ) {
     private val dataStore = context.dataStore
-    private var cachedOsmchaToken: String? = null
-
-    private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
-
-    init {
-        migrateTokenToSecureStorage()
-    }
-
-    private fun migrateTokenToSecureStorage() {
-        migrationScope.launch {
-            try {
-                val preferences = dataStore.data.first()
-                val plainTextToken = preferences[OSMCHA_TOKEN] ?: ""
-
-                if (plainTextToken.isNotBlank() && !secureTokenStorage.hasOsmchaToken()) {
-                    // Migrate token to secure storage
-                    secureTokenStorage.saveOsmchaToken(plainTextToken)
-
-                    // Clear the plain-text token from DataStore
-                    dataStore.edit { prefs ->
-                        prefs.remove(OSMCHA_TOKEN)
-                    }
-
-                    Timber.i("Successfully migrated OSMCha token to secure storage")
-                }
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to migrate token to secure storage")
-            }
-        }
-    }
 
     companion object {
         private val DARK_MODE = booleanPreferencesKey("dark_mode")
@@ -214,35 +180,13 @@ class SettingsRepository @Inject constructor(
 
 
     suspend fun updateOsmchaToken(token: String) {
-        val normalizedToken = normalizeOsmchaToken(token)
-
-        // Save to secure encrypted storage
-        secureTokenStorage.saveOsmchaToken(normalizedToken)
-        cachedOsmchaToken = normalizedToken
-
-        // Also remove any legacy plain-text token from DataStore
+        secureTokenStorage.saveOsmchaToken(normalizeOsmchaToken(token))
         dataStore.edit { preferences ->
             preferences.remove(OSMCHA_TOKEN)
         }
     }
 
-    fun getOsmchaTokenOnce(): String {
-        cachedOsmchaToken?.let { return it }
-        // Read from secure encrypted storage
-        val token = secureTokenStorage.getOsmchaToken()
-        cachedOsmchaToken = token
-        return token
-    }
-
-    private fun normalizeOsmchaToken(rawToken: String): String {
-        val trimmed = rawToken.trim()
-        val withoutPrefix = if (trimmed.startsWith("Token ", ignoreCase = true)) {
-            trimmed.substringAfter(' ', missingDelimiterValue = trimmed).trimStart()
-        } else {
-            trimmed
-        }
-        return withoutPrefix.filterNot { it.isWhitespace() }
-    }
+    fun getOsmchaTokenOnce(): String = secureTokenStorage.getOsmchaToken()
 
     suspend fun updateOsmchaChangesetsLimit(limit: Int) {
         dataStore.edit { preferences ->
@@ -269,4 +213,14 @@ class SettingsRepository @Inject constructor(
         // Also clear secure token storage
         secureTokenStorage.clearOsmchaToken()
     }
+}
+
+internal fun normalizeOsmchaToken(rawToken: String): String {
+    val trimmed = rawToken.trim()
+    val withoutPrefix = if (trimmed.startsWith("Token ", ignoreCase = true)) {
+        trimmed.substringAfter(' ', missingDelimiterValue = trimmed).trimStart()
+    } else {
+        trimmed
+    }
+    return withoutPrefix.filterNot { it.isWhitespace() }
 }

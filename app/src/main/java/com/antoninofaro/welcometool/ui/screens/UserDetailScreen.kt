@@ -109,6 +109,22 @@ fun UserDetailScreen(
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) }
             )
 
+            if (!user.description.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Text(
+                        text = user.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Action Button
