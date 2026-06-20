@@ -188,13 +188,22 @@ private fun SettingsScreenContent(
             )
 
             if (settings.autoRefresh) {
-                SettingsSliderItem(
-                    title = "Intervallo di Aggiornamento",
-                    description = "${settings.autoRefreshInterval} minuti",
-                    value = settings.autoRefreshInterval.toFloat(),
-                    valueRange = 5f..120f,
-                    steps = 22,
-                    onValueChange = { onAutoRefreshIntervalChange(it.toInt()) }
+                var intervalText by remember(settings.autoRefreshInterval) { mutableStateOf(settings.autoRefreshInterval.toString()) }
+                OutlinedTextField(
+                    value = intervalText,
+                    onValueChange = { text ->
+                        intervalText = text
+                        text.toIntOrNull()?.let { v ->
+                            if (v in 15..120) onAutoRefreshIntervalChange(v)
+                        }
+                    },
+                    label = { Text("Intervallo di Aggiornamento (minuti)") },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    singleLine = true,
+                    isError = intervalText.toIntOrNull()?.let { it !in 15..120 } ?: (intervalText.isNotEmpty()),
+                    supportingText = {
+                        Text(intervalText.toIntOrNull()?.let { if (it in 15..120) "${it} minuti" else "Minimo 15 minuti" } ?: "Minimo 15 minuti")
+                    }
                 )
             }
 
@@ -203,13 +212,22 @@ private fun SettingsScreenContent(
             // Sezione Filtri
             SettingsSectionHeader(title = "FILTRI PREDEFINITI")
 
-            SettingsSliderItem(
-                title = "Modifiche Minime",
-                description = "Mostra solo utenti con almeno ${settings.minChangesetsFilter} modifiche",
-                value = settings.minChangesetsFilter.toFloat(),
-                valueRange = 0f..500f,
-                steps = 49,
-                onValueChange = { onMinChangesetsFilterChange(it.toInt()) }
+            var minChangesText by remember(settings.minChangesetsFilter) { mutableStateOf(settings.minChangesetsFilter.toString()) }
+            OutlinedTextField(
+                value = minChangesText,
+                onValueChange = { text ->
+                    minChangesText = text
+                    text.toIntOrNull()?.let { v ->
+                        if (v in 1..500) onMinChangesetsFilterChange(v)
+                    }
+                },
+                label = { Text("Modifiche Minime") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                singleLine = true,
+                isError = minChangesText.toIntOrNull()?.let { it !in 0..500 } ?: (minChangesText.isNotEmpty()),
+                supportingText = {
+                    Text(minChangesText.toIntOrNull()?.let { if (it in 0..500) "Mostra utenti con almeno $it modifiche" else "Massimo 500 modifiche" } ?: "Massimo 500 modifiche")
+                }
             )
 
             HorizontalDivider()
