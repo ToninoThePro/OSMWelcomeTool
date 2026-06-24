@@ -1,5 +1,6 @@
 package com.antoninofaro.welcometool.ui.screens
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antoninofaro.welcometool.data.entity.UserEntity
@@ -7,32 +8,38 @@ import com.antoninofaro.welcometool.data.entity.UserAreaActivityEntity
 import com.antoninofaro.welcometool.data.local.dao.UserDao
 import com.antoninofaro.welcometool.data.local.model.UserAreaActivityWithUser
 import com.antoninofaro.welcometool.data.model.CountWrapper
+import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.OsmUser
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.model.UserImage
 import com.antoninofaro.welcometool.data.repository.OsmRepository
+import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
 import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.domain.UserAnalyzer
+import com.antoninofaro.welcometool.utils.ConnectivityObserver
 import com.antoninofaro.welcometool.utils.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import javax.inject.Inject
 
 data class UserUiModel(
     val user: OsmUser,
     val analysis: UserAnalysis,
-    val lastUpdated: Long = 0L
+    val lastUpdated: Long = 0L,
+    val osmchaLastChecked: Long = 0L,
 )
+
+enum class OsmchaState { NoToken, Loading, Loaded, Error }
 
 data class MainUiState(
     val isLoading: Boolean = false,
@@ -47,33 +54,64 @@ data class MainUiState(
     val minChanges: Int = 0,
     val filterIsNewcomer: Boolean = false,
     val filterIsReturning: Boolean = false,
-    val filterIsPowerUser: Boolean = false
+    val filterIsPowerUser: Boolean = false,
+    val osmchaState: OsmchaState = OsmchaState.NoToken,
+    val osmchaLikes: Int = 0,
+    val osmchaDislikes: Int = 0,
+    val isOnline: Boolean = true,
+    val lastSyncTimestamp: Long = 0L,
 )
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
+    private val application: Application,
     private val repository: OsmRepository,
     private val welcomedUserStorage: WelcomedUserStorage,
     private val osmChaRepository: com.antoninofaro.welcometool.data.repository.OsmChaRepository,
     private val userDao: UserDao,
+    private val settingsRepository: SettingsRepository,
+    private val connectivityObserver: ConnectivityObserver,
 ) : ViewModel() {
 
     companion object {
         private const val USER_CACHE_TTL_MS = 24 * 60 * 60 * 1000L
+        private const val CACHE_PAGE_TTL_MS = 30 * 60 * 1000L
+        private const val DORMANT_USER_THRESHOLD_MS = 15L * 24 * 60 * 60 * 1000L // 15 Days
         private const val LOCAL_PAGE_SIZE = 100
-        private const val MAX_CONCURRENT_USER_FETCH = 6
-        private const val MAX_SCAN_WINDOWS = 6
+        private const val INITIAL_SCAN_WINDOWS = 8
         private const val MAX_RECENT_CHANGESETS = 100
+        private const val BATCH_FETCH_SIZE = 50
         private const val OSM_EPOCH_START = "2005-01-01T00:00:00Z"
     }
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    private val osmchaLoadedUserIds = mutableSetOf<Long>()
+    private fun updateUiState(transform: (MainUiState) -> MainUiState) {
+        _uiState.value = transform(_uiState.value)
+    }
+
+
+    private val welcomedMutex = Mutex()
+    private val toggleMutex = Mutex()
     private var welcomedIdsCache: Set<String>? = null
     private var oldestChangesetCursor: String? = null
     private var currentPageOffset: Int = 0
+
+    init {
+        viewModelScope.launch {
+            val savedBBox = settingsRepository.settingsFlow.first().defaultBBox
+            if (savedBBox != Constants.ITALY_BBOX) {
+                _uiState.value = _uiState.value.copy(selectedBBox = savedBBox)
+            }
+            loadData(forceRefresh = true)
+        }
+        viewModelScope.launch {
+            connectivityObserver.isOnline.collect { online ->
+                _uiState.value = _uiState.value.copy(isOnline = online)
+            }
+        }
+    }
 
     private data class ProcessedUser(
         val uiModel: UserUiModel,
@@ -83,10 +121,12 @@ class MainViewModel @Inject constructor(
 
     fun loadData(forceRefresh: Boolean = false) {
         viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
             currentPageOffset = 0
-            oldestChangesetCursor = null // ponytail: each full reload starts from present
+            oldestChangesetCursor = null
             val selectedBBox = _uiState.value.selectedBBox
             val showRefreshIndicator = forceRefresh && _uiState.value.users.isNotEmpty()
+            
             _uiState.value = _uiState.value.copy(
                 isLoading = !showRefreshIndicator,
                 isRefreshing = showRefreshIndicator,
@@ -98,22 +138,31 @@ class MainViewModel @Inject constructor(
             try {
                 val pageUsers = loadLocalUsersPage(selectedBBox, currentPageOffset)
 
+                // If not force refresh, check if page is stale based on autoRefreshInterval
                 if (pageUsers.isNotEmpty() && !forceRefresh) {
-                    _uiState.value = _uiState.value.copy(
-                        users = pageUsers,
-                        filteredUsers = pageUsers,
-                        hasReachedEnd = pageUsers.size < LOCAL_PAGE_SIZE
-                    )
-                    applyFilters()
-                    return@launch
+                    val newestLastUpdated = pageUsers.maxOfOrNull { it.lastUpdated } ?: 0L
+                    val refreshIntervalMs = settings.autoRefreshInterval * 60 * 1000L
+                    val isPageFresh = (System.currentTimeMillis() - newestLastUpdated) < refreshIntervalMs
+                    
+                    if (isPageFresh) {
+                        _uiState.value = _uiState.value.copy(
+                            users = pageUsers,
+                            filteredUsers = pageUsers,
+                            hasReachedEnd = pageUsers.size < LOCAL_PAGE_SIZE
+                        )
+                        applyFilters()
+                        return@launch
+                    }
                 }
 
                 syncRecentUsersForCurrentBBox(selectedBBox)
 
+                _uiState.value = _uiState.value.copy(lastSyncTimestamp = System.currentTimeMillis())
+
                 val refreshedUsers = loadLocalUsersPage(selectedBBox, currentPageOffset)
 
                 if (refreshedUsers.isEmpty()) {
-                    loadCachedUsersOrShowError(selectedBBox, "Nessun utente recuperato")
+                    loadCachedUsersOrShowError(selectedBBox, application.getString(R.string.no_users_loaded))
                     return@launch
                 }
 
@@ -128,9 +177,11 @@ class MainViewModel @Inject constructor(
                     "Loaded ${refreshedUsers.size} utenti locali per bbox $selectedBBox, offset=$currentPageOffset, next cursor=$oldestChangesetCursor"
                 )
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Error loading data")
-                loadCachedUsersOrShowError(selectedBBox, "Errore: ${e.message}")
+                loadCachedUsersOrShowError(selectedBBox, application.getString(R.string.error_prefix, e.message))
             } finally {
                 _uiState.value = _uiState.value.copy(isLoading = false, isRefreshing = false)
             }
@@ -139,80 +190,79 @@ class MainViewModel @Inject constructor(
 
     private suspend fun syncRecentUsersForCurrentBBox(bbox: String) {
         val welcomedIds = getWelcomedIds()
-        val semaphore = Semaphore(MAX_CONCURRENT_USER_FETCH)
-        val collectedUsers = mutableListOf<ProcessedUser>()
         var scanCursor = oldestChangesetCursor
         val seenUserIds = mutableSetOf<Long>()
+        val allProcessedUsers = mutableListOf<ProcessedUser>()
+        val latestChangesetByUid = mutableMapOf<Long, OsmChangeset>()
+        val staleUids = mutableListOf<Long>()
 
-        for (window in 0 until MAX_SCAN_WINDOWS) {
+        for (window in 0 until INITIAL_SCAN_WINDOWS) {
             val changesetsResult = repository.fetchRecentChangesets(
                 bbox,
                 buildTimeRange(scanCursor),
                 MAX_RECENT_CHANGESETS
             )
 
-            if (changesetsResult !is Result.Success) {
-                if (collectedUsers.isEmpty()) {
-                    throw IllegalStateException(
-                        "Errore nel caricamento dei changeset: ${changesetsResult.exceptionOrNull()?.message}"
-                    )
-                }
-                Timber.w(changesetsResult.exceptionOrNull(), "Stopping scan on remote error")
-                break
-            }
-
+            if (changesetsResult !is Result.Success) break
             val changesets = changesetsResult.data
-            if (changesets.isEmpty()) {
-                Timber.d("No more changesets available for scan")
-                break
-            }
+            if (changesets.isEmpty()) break
 
-            val newUids = changesets
-                .map { it.uid }
-                .distinct()
-                .filterNot { seenUserIds.contains(it) }
+            changesets.reversed().forEach { latestChangesetByUid.putIfAbsent(it.uid, it) }
 
-            if (newUids.isNotEmpty()) {
-                val changesetsByUid = changesets.reversed().associateBy { it.uid } // ponytail: reversed so associateBy keeps the newest (first) per uid
-                val processedBatch = kotlinx.coroutines.coroutineScope {
-                    val deferredResults = newUids.map { uid ->
-                        async {
-                            semaphore.withPermit {
-                                processUser(uid, bbox, changesetsByUid, welcomedIds)
-                            }
-                        }
-                    }
-                    deferredResults.awaitAll().filterNotNull()
-                }
-                if (processedBatch.isNotEmpty()) {
-                    collectedUsers.addAll(processedBatch)
-                    seenUserIds.addAll(processedBatch.map { it.uiModel.user.id })
+            val currentWindowUids = changesets.map { it.uid }.distinct()
+            val uidsToSync = currentWindowUids.filterNot { seenUserIds.contains(it) }
 
-                    val usersToPersist = processedBatch.mapNotNull { it.entityToPersist }
-                    val areaActivitiesToPersist = processedBatch.mapNotNull { it.areaActivityToPersist }
+            if (uidsToSync.isNotEmpty()) {
+                val cachedUsersMap = userDao.getUsersByIds(uidsToSync).associateBy { it.id }
 
-                    if (usersToPersist.isNotEmpty()) {
-                        userDao.insertUsers(usersToPersist)
-                    }
-                    if (areaActivitiesToPersist.isNotEmpty()) {
-                        userDao.insertUserAreaActivities(areaActivitiesToPersist)
+                uidsToSync.forEach { uid ->
+                    val cached = cachedUsersMap[uid]
+                    val recent = latestChangesetByUid[uid] ?: return@forEach
+                    if (!isUserUpdateRequired(cached, recent)) {
+                        val analysis = (cached ?: return@forEach).toAnalysis(recent.createdAt)
+                            .copy(isWelcomed = welcomedIds.contains(uid.toString()))
+
+                        allProcessedUsers.add(ProcessedUser(
+                            uiModel = UserUiModel(cached.toOsmUser(), analysis, cached.lastUpdated, cached.osmchaLastChecked),
+                            entityToPersist = null,
+                            areaActivityToPersist = UserAreaActivityEntity(bbox, uid, recent.createdAt, recent.id)
+                        ))
+                        seenUserIds.add(uid)
+                    } else {
+                        staleUids.add(uid)
                     }
                 }
             }
 
             val nextCursor = computeOlderCursor(changesets)
-            if (nextCursor == null || nextCursor == scanCursor) {
-                break
-            }
-
+            if (nextCursor == null || nextCursor == scanCursor) break
             oldestChangesetCursor = nextCursor
             scanCursor = nextCursor
+        }
 
-            if (collectedUsers.size >= LOCAL_PAGE_SIZE) {
-                Timber.d("Collected enough users for local cache refresh in window #$window")
-                break
+        staleUids.chunked(BATCH_FETCH_SIZE).forEach { batchIds ->
+            val remoteUsers = repository.fetchUsersDetails(batchIds).getOrNull()
+            if (remoteUsers != null) {
+                remoteUsers.forEach { user ->
+                    val recent = latestChangesetByUid[user.id] ?: return@forEach
+                    val isWelcomed = welcomedIds.contains(user.id.toString())
+                    val analysis = UserAnalyzer.analyze(user, emptyList(), recent, isWelcomed = isWelcomed)
+                    val userEntity = user.toEntity(analysis)
+
+                    allProcessedUsers.add(ProcessedUser(
+                        uiModel = UserUiModel(user, analysis, userEntity.lastUpdated, userEntity.osmchaLastChecked),
+                        entityToPersist = userEntity,
+                        areaActivityToPersist = UserAreaActivityEntity(bbox, user.id, recent.createdAt, recent.id)
+                    ))
+                    seenUserIds.add(user.id)
+                }
             }
         }
+
+        val entities = allProcessedUsers.mapNotNull { it.entityToPersist }
+        val activities = allProcessedUsers.mapNotNull { it.areaActivityToPersist }
+        if (entities.isNotEmpty()) userDao.insertUsers(entities)
+        if (activities.isNotEmpty()) userDao.insertUserAreaActivities(activities)
     }
 
     private suspend fun loadLocalUsersPage(bbox: String, offset: Int): List<UserUiModel> {
@@ -225,9 +275,8 @@ class MainViewModel @Inject constructor(
         return cursorEnd?.let { "$OSM_EPOCH_START,$it" }
     }
 
-    // ponytail: API returns changesets in reverse-chronological order, so lastOrNull gives the oldest
     private fun computeOlderCursor(changesets: List<OsmChangeset>): String? {
-        return changesets.lastOrNull()?.createdAt
+        return changesets.minByOrNull { it.createdAt }?.createdAt
     }
 
     private suspend fun loadCachedUsersOrShowError(bbox: String, fallbackErrorMessage: String) {
@@ -249,81 +298,12 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private suspend fun processUser(
-        uid: Long,
-        bbox: String,
-        changesetsByUid: Map<Long, OsmChangeset>,
-        welcomedIds: Set<String>
-    ): ProcessedUser? = kotlinx.coroutines.coroutineScope {
-        val recentChangeset = changesetsByUid[uid] ?: return@coroutineScope null
-
-        val cachedUser = userDao.getUserById(uid)
-        val isStale = isUserCacheStale(cachedUser)
-
-        if (cachedUser != null && !isStale) {
-            val analysis = cachedUser.toAnalysis(recentChangeset.createdAt)
-                .copy(isWelcomed = welcomedIds.contains(uid.toString()))
-
-            return@coroutineScope ProcessedUser(
-                uiModel = UserUiModel(cachedUser.toOsmUser(), analysis, cachedUser.lastUpdated),
-                entityToPersist = null,
-                areaActivityToPersist = UserAreaActivityEntity(
-                    bbox = bbox,
-                    userId = uid,
-                    lastChangesetDate = recentChangeset.createdAt,
-                    lastChangesetId = recentChangeset.id
-                )
-            )
+    val isDataStale: Boolean
+        get() {
+            val state = _uiState.value
+            return !state.isOnline && state.lastSyncTimestamp > 0 &&
+                   (System.currentTimeMillis() - state.lastSyncTimestamp) > CACHE_PAGE_TTL_MS
         }
-
-        val userDeferred = async { repository.fetchUserDetail(uid) }
-        val historyDeferred = async { repository.fetchUserChangesets(uid) }
-
-        val userResult = userDeferred.await()
-        val historyResult = historyDeferred.await()
-
-        if (userResult !is Result.Success) {
-            Timber.w("Failed to fetch user $uid: ${userResult.exceptionOrNull()?.message}")
-            return@coroutineScope null
-        }
-
-        val user = userResult.data
-        val userHistory = historyResult.getOrDefault(emptyList())
-
-        val analysis = UserAnalyzer.analyze(user, userHistory, recentChangeset)
-            .copy(isWelcomed = welcomedIds.contains(uid.toString()))
-
-        val userEntity = UserEntity(
-            id = user.id,
-            displayName = user.displayName,
-            accountCreated = user.accountCreated,
-            description = user.description,
-            accountAge = analysis.accountAge,
-            isNewcomer = analysis.isNewcomer,
-            isReturning = analysis.isReturning,
-            isPowerUser = analysis.isPowerUser,
-            totalEdits = analysis.totalEdits,
-            firstChangesetDate = analysis.firstChangesetDate,
-            lastActiveDate = analysis.lastActiveDate,
-            osmchaLikes = analysis.osmchaLikes,
-            osmchaDislikes = analysis.osmchaDislikes,
-            isWelcomed = analysis.isWelcomed,
-            imgUrl = user.img?.href
-        )
-
-        val areaActivityEntity = UserAreaActivityEntity(
-            bbox = bbox,
-            userId = user.id,
-            lastChangesetDate = recentChangeset.createdAt,
-            lastChangesetId = recentChangeset.id
-        )
-
-        return@coroutineScope ProcessedUser(
-            uiModel = UserUiModel(user, analysis, userEntity.lastUpdated),
-            entityToPersist = userEntity,
-            areaActivityToPersist = areaActivityEntity
-        )
-    }
 
     private fun sortUsersByAreaActivity(users: List<UserUiModel>): List<UserUiModel> {
         return users.sortedWith(
@@ -332,15 +312,33 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    private fun isUserCacheStale(cachedUser: UserEntity?): Boolean {
-        return cachedUser == null || (System.currentTimeMillis() - cachedUser.lastUpdated > USER_CACHE_TTL_MS)
+    private fun isUserUpdateRequired(cached: UserEntity?, recent: OsmChangeset): Boolean {
+        if (cached == null) return true
+        if (recent.createdAt > (cached.lastActiveDate ?: "")) return true
+
+        val isStale = System.currentTimeMillis() - cached.lastUpdated > USER_CACHE_TTL_MS
+        val isDormant = cached.lastActiveDate?.let { lastDate ->
+            try {
+                val lastMillis = java.time.Instant.parse(lastDate).toEpochMilli()
+                (System.currentTimeMillis() - lastMillis) > DORMANT_USER_THRESHOLD_MS
+            } catch (e: Exception) { false }
+        } ?: false
+
+        return isStale && !isDormant
+    }
+
+    private fun isPageStale(pageUsers: List<UserUiModel>): Boolean {
+        val newestLastUpdated = pageUsers.maxOfOrNull { it.lastUpdated } ?: return true
+        return System.currentTimeMillis() - newestLastUpdated > CACHE_PAGE_TTL_MS
     }
 
     private suspend fun getWelcomedIds(forceRefresh: Boolean = false): Set<String> {
-        if (!forceRefresh) {
-            welcomedIdsCache?.let { return it }
+        return welcomedMutex.withLock {
+            if (!forceRefresh) {
+                welcomedIdsCache?.let { return@withLock it }
+            }
+            welcomedUserStorage.getAllWelcomedIds().also { welcomedIdsCache = it }
         }
-        return welcomedUserStorage.getAllWelcomedIds().also { welcomedIdsCache = it }
     }
 
     private fun UserEntity.toUiModel(): UserUiModel {
@@ -367,34 +365,75 @@ class MainViewModel @Inject constructor(
             osmchaDislikes = this.osmchaDislikes,
             isWelcomed = this.isWelcomed
         )
-        return UserUiModel(osmUser, analysis, this.lastUpdated)
+        return UserUiModel(osmUser, analysis, this.lastUpdated, this.osmchaLastChecked)
     }
 
     fun loadOsmchaForUser(userId: Long) {
-        if (osmchaLoadedUserIds.contains(userId)) return
-        osmchaLoadedUserIds.add(userId)
-
         viewModelScope.launch {
-            val currentUser = _uiState.value.users.find { it.user.id == userId }
-            if (currentUser == null) return@launch // ponytail: filteredUsers is a subset of users
-
-            val (likes, dislikes) = osmChaRepository.getUserOsmChaStats(currentUser.user.displayName)
-
-            val updatedUsers = _uiState.value.users.map { userModel ->
-                if (userModel.user.id == userId) {
-                    userModel.copy(
-                        analysis = userModel.analysis.copy(
-                            osmchaLikes = likes,
-                            osmchaDislikes = dislikes
-                        )
-                    )
-                } else {
-                    userModel
-                }
+            val settings = settingsRepository.settingsFlow.first()
+            if (settings.osmchaToken.isBlank()) {
+                _uiState.value = _uiState.value.copy(osmchaState = OsmchaState.NoToken)
+                return@launch
             }
 
-            _uiState.value = _uiState.value.copy(users = updatedUsers)
-            applyFilters()
+            val current = _uiState.value.users.find { it.user.id == userId } ?: return@launch
+            val lastChecked = current.osmchaLastChecked
+            val refreshIntervalMs = settings.osmchaAutoRefreshDays * 86_400_000L
+            val isFresh = lastChecked > 0 && (System.currentTimeMillis() - lastChecked) <= refreshIntervalMs
+
+            if (isFresh) {
+                // If data is fresh, ensure UI reflects it and set state to Loaded
+                _uiState.value = _uiState.value.copy(
+                    osmchaState = OsmchaState.Loaded,
+                    osmchaLikes = current.analysis.osmchaLikes,
+                    osmchaDislikes = current.analysis.osmchaDislikes
+                )
+                return@launch
+            }
+
+            if (lastChecked > 0) {
+                _uiState.value = _uiState.value.copy(osmchaState = OsmchaState.Loading)
+            } else {
+                _uiState.value = _uiState.value.copy(osmchaState = OsmchaState.Loading, osmchaLikes = 0, osmchaDislikes = 0)
+            }
+            doFetchOsmcha(userId)
+        }
+    }
+
+    fun refreshOsmchaForUser(userId: Long) {
+        viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+            if (settings.osmchaToken.isBlank()) {
+                _uiState.value = _uiState.value.copy(osmchaState = OsmchaState.NoToken)
+                return@launch
+            }
+            _uiState.value = _uiState.value.copy(osmchaState = OsmchaState.Loading)
+            doFetchOsmcha(userId)
+        }
+    }
+
+    private suspend fun doFetchOsmcha(userId: Long) {
+        val currentUser = _uiState.value.users.find { it.user.id == userId } ?: return
+        when (val result = osmChaRepository.getUserOsmChaStats(currentUser.user.displayName)) {
+            is Result.Success -> {
+                val (likes, dislikes) = result.data
+                val now = System.currentTimeMillis()
+                val updatedUsers = _uiState.value.users.map { userModel ->
+                    if (userModel.user.id == userId) userModel.copy(
+                        analysis = userModel.analysis.copy(osmchaLikes = likes, osmchaDislikes = dislikes),
+                        osmchaLastChecked = now
+                    ) else userModel
+                }
+                _uiState.value = _uiState.value.copy(
+                    osmchaState = OsmchaState.Loaded, osmchaLikes = likes, osmchaDislikes = dislikes,
+                    users = updatedUsers
+                )
+                applyFilters()
+                userDao.updateOsmchaStats(userId, likes, dislikes, now, now)
+            }
+            is Result.Error -> {
+                _uiState.value = _uiState.value.copy(osmchaState = OsmchaState.Error)
+            }
         }
     }
 
@@ -406,7 +445,7 @@ class MainViewModel @Inject constructor(
     fun performSearch(query: String) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Inserisci un nome utente valido")
+            _uiState.value = _uiState.value.copy(errorMessage = application.getString(R.string.enter_valid_username))
             return
         }
 
@@ -414,23 +453,24 @@ class MainViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
+                val escapedQuery = normalizedQuery
+                    .replace("\\", "\\\\")
+                    .replace("_", "\\_")
+                    .replace("%", "\\%")
                 val searchResults = userDao.searchUsersForBBox(
                     _uiState.value.selectedBBox,
-                    "%$normalizedQuery%"
+                    "%$escapedQuery%"
                 ).map { it.toUiModel() }
 
                 if (searchResults.isEmpty()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Utente non presente nella cache locale per la zona selezionata"
+                        errorMessage = application.getString(R.string.user_not_in_cache)
                     )
                     return@launch
                 }
 
                 _uiState.value = _uiState.value.copy(
-                    users = sortUsersByAreaActivity(
-                        (_uiState.value.users + searchResults).distinctBy { it.user.id }
-                    ),
                     filteredUsers = searchResults,
                     isLoading = false,
                     searchTerm = normalizedQuery,
@@ -439,14 +479,14 @@ class MainViewModel @Inject constructor(
                     filterIsPowerUser = false
                 )
 
-                applyFilters()
 
-
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Error searching user manually: $normalizedQuery")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Errore durante la ricerca: ${e.message}"
+                    errorMessage = application.getString(R.string.error_search_format, e.message)
                 )
             }
         }
@@ -477,10 +517,12 @@ class MainViewModel @Inject constructor(
                     hasReachedEnd = nextPage.size < LOCAL_PAGE_SIZE
                 )
                 applyFilters()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Timber.e(e, "Error loading more users")
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = "Errore durante il caricamento: ${e.message}"
+                    errorMessage = application.getString(R.string.error_loading_format, e.message)
                 )
             } finally {
                 _uiState.value = _uiState.value.copy(isPaging = false)
@@ -499,6 +541,11 @@ class MainViewModel @Inject constructor(
 
     fun onPullToRefresh() {
         loadData(forceRefresh = true)
+    }
+
+    fun updateMinChanges(min: Int) {
+        _uiState.value = _uiState.value.copy(minChanges = min.coerceAtLeast(0))
+        applyFilters()
     }
 
     fun toggleNewcomerFilter() {
@@ -549,63 +596,67 @@ class MainViewModel @Inject constructor(
         return UserUiModel(
             user = user.toOsmUser(),
             analysis = analysis,
-            lastUpdated = areaLastUpdated
+            lastUpdated = areaLastUpdated,
+            osmchaLastChecked = user.osmchaLastChecked
         )
     }
 
     private fun applyFilters() {
         val current = _uiState.value
-        val normalizedSearchTerm = current.searchTerm.trim()
-        val filtered = current.users.filter { uiModel ->
-            val matchesSearch = if (normalizedSearchTerm.isBlank()) {
-                true
-            } else {
-                uiModel.user.displayName.contains(normalizedSearchTerm, ignoreCase = true)
-            }
-            val matchesNewcomer =
-                if (current.filterIsNewcomer) uiModel.analysis.isNewcomer else false
-            val matchesReturning =
-                if (current.filterIsReturning) uiModel.analysis.isReturning else false
-            val matchesPowerUser =
-                if (current.filterIsPowerUser) uiModel.analysis.isPowerUser else false
-            val anyFilterActive = current.filterIsNewcomer || current.filterIsReturning || current.filterIsPowerUser
-            val matchesCategory = if (anyFilterActive) {
-                matchesNewcomer || matchesReturning || matchesPowerUser
-            } else true
+        val term = current.searchTerm.trim()
+        val hasCatFilter = current.filterIsNewcomer || current.filterIsReturning || current.filterIsPowerUser
 
-            matchesSearch && matchesCategory
+        val filtered = current.users.filter { m ->
+            val matchesSearch = term.isBlank() || m.user.displayName.contains(term, ignoreCase = true)
+            val matchesCategory = !hasCatFilter || (
+                (current.filterIsNewcomer && m.analysis.isNewcomer) ||
+                (current.filterIsReturning && m.analysis.isReturning) ||
+                (current.filterIsPowerUser && m.analysis.isPowerUser)
+            )
+            val matchesMinChanges = current.minChanges <= 0 || m.analysis.totalEdits >= current.minChanges
+            
+            matchesSearch && matchesCategory && matchesMinChanges
         }
-        _uiState.value = current.copy(filteredUsers = filtered)
+        updateUiState { it.copy(filteredUsers = filtered) }
     }
 
     fun toggleWelcomed(userId: Long, currentStatus: Boolean) {
         viewModelScope.launch {
-            welcomedUserStorage.setWelcomed(userId, !currentStatus)
-            userDao.updateWelcomedStatus(userId, !currentStatus, System.currentTimeMillis())
-            // ponytail: update cache in-place instead of discarding it
-            welcomedIdsCache = welcomedIdsCache?.let {
-                if (!currentStatus) it + userId.toString() else it - userId.toString()
-            }
-
-            val updatedUsers = _uiState.value.users.map { userModel ->
-                if (userModel.user.id == userId) {
-                    userModel.copy(
-                        analysis = userModel.analysis.copy(isWelcomed = !currentStatus)
-                    )
-                } else {
-                    userModel
+            toggleMutex.withLock {
+                welcomedUserStorage.setWelcomed(userId, !currentStatus)
+                userDao.updateWelcomedStatus(userId, !currentStatus, System.currentTimeMillis())
+                welcomedMutex.withLock {
+                    welcomedIdsCache = welcomedIdsCache?.let {
+                        if (!currentStatus) it + userId.toString() else it - userId.toString()
+                    }
                 }
-            }
 
-            _uiState.value = _uiState.value.copy(users = updatedUsers)
-            applyFilters()
+                val updatedUsers = _uiState.value.users.map { userModel ->
+                    if (userModel.user.id == userId) {
+                        userModel.copy(
+                            analysis = userModel.analysis.copy(isWelcomed = !currentStatus)
+                        )
+                    } else {
+                        userModel
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(users = updatedUsers)
+                applyFilters()
+            }
         }
     }
 
-    fun refreshUser(userId: Long) {
+    fun refreshUser(userId: Long, force: Boolean = false) {
         viewModelScope.launch {
             val cachedUser = userDao.getUserById(userId)
-            if (cachedUser != null && !isUserCacheStale(cachedUser)) {
+
+            // Auto-refresh logic: only if forced OR (not stale according to 24h threshold)
+            // Note: USER_CACHE_TTL_MS is 24h
+            val isFresh = cachedUser != null && (System.currentTimeMillis() - cachedUser.lastUpdated) < USER_CACHE_TTL_MS
+            
+            if (!force && isFresh) {
+                Timber.d("User $userId is fresh (< 24h), skipping auto-refresh")
                 return@launch
             }
 
@@ -616,15 +667,13 @@ class MainViewModel @Inject constructor(
             }
 
             val user = userResult.data
-            val historyResult = repository.fetchUserChangesets(userId)
-            val userHistory = historyResult.getOrDefault(emptyList())
 
             val welcomedIds = getWelcomedIds()
 
-            // We don't have the recent changeset here easily, passing null.
-            // This might affect analysis slightly if it relies on specific changeset details.
-            val analysis = UserAnalyzer.analyze(user, userHistory, null)
-                .copy(isWelcomed = welcomedIds.contains(userId.toString()))
+            val userChangesets = repository.fetchUserChangesets(userId, 100).getOrNull().orEmpty()
+
+            val isWelcomed = welcomedIds.contains(userId.toString())
+            val analysis = UserAnalyzer.analyze(user, userChangesets, null, isWelcomed = isWelcomed)
 
             val userEntity = user.toEntity(analysis)
 
@@ -633,9 +682,7 @@ class MainViewModel @Inject constructor(
             val updatedModel = userEntity.toUiModel()
 
             _uiState.value = _uiState.value.copy(
-                users = sortUsersByAreaActivity(
-                    _uiState.value.users.map { if (it.user.id == userId) updatedModel else it }
-                )
+                users = _uiState.value.users.map { if (it.user.id == userId) updatedModel else it }
             )
             applyFilters()
         }

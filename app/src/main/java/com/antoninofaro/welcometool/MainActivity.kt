@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -22,13 +23,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.antoninofaro.welcometool.ui.screens.MainViewModel
 import com.antoninofaro.welcometool.ui.screens.LicensesScreen
+import com.antoninofaro.welcometool.ui.screens.OnboardingScreen
 import com.antoninofaro.welcometool.ui.screens.SettingsScreen
 import com.antoninofaro.welcometool.ui.screens.SettingsViewModel
 import com.antoninofaro.welcometool.ui.screens.UserDetailScreen
@@ -46,9 +50,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            WelcomeToolTheme {
-                val context = LocalContext.current
-                val settings by settingsViewModel.settings.collectAsState()
+            val context = LocalContext.current
+            val settings by settingsViewModel.settings.collectAsState()
+            val darkTheme = when (settings.themeMode) {
+                "dark" -> true
+                "light" -> false
+                else -> isSystemInDarkTheme()
+            }
+
+            WelcomeToolTheme(
+                darkTheme = darkTheme,
+                dynamicColor = settings.dynamicColor
+            ) {
 
                 LaunchedEffect(settings.autoRefresh, settings.autoRefreshInterval) {
                     com.antoninofaro.welcometool.utils.WorkerUtils.scheduleOsmSyncWorker(
@@ -63,27 +76,30 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-                // ponytail: one-shot rationale per process start, no persistent flag needed
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     var showRationale by remember { mutableStateOf(false) }
-                    LaunchedEffect(Unit) {
-                        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                            showRationale = true
+                    var permissionRequestAttempted by rememberSaveable { mutableStateOf(false) }
+                    LaunchedEffect(settings.isOnboardingCompleted, settings.showNotifications) {
+                        if (!permissionRequestAttempted && settings.isOnboardingCompleted && settings.showNotifications) {
+                            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                showRationale = true
+                            }
+                            permissionRequestAttempted = true
                         }
                     }
                     if (showRationale) {
                         AlertDialog(
                             onDismissRequest = { showRationale = false },
-                            title = { Text("Notifiche") },
-                            text = { Text("Abilita le notifiche per ricevere avvisi quando qualcuno modifica l'area monitorata o quando si rileva un nuovo mappatore.") },
+                            title = { Text(stringResource(R.string.notification_rationale_title)) },
+                            text = { Text(stringResource(R.string.notification_rationale_desc)) },
                             confirmButton = {
                                 TextButton(onClick = {
                                     showRationale = false
                                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                }) { Text("OK") }
+                                }) { Text(stringResource(R.string.ok_btn)) }
                             },
                             dismissButton = {
-                                TextButton(onClick = { showRationale = false }) { Text("Non ora") }
+                                TextButton(onClick = { showRationale = false }) { Text(stringResource(R.string.not_now_btn)) }
                             }
                         )
                     }
@@ -93,7 +109,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation(viewModel, settingsViewModel)
+                    AppNavigation(viewModel, settingsViewModel, settings.isOnboardingCompleted)
                 }
             }
         }
@@ -103,12 +119,26 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(
     viewModel: MainViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    isOnboardingCompleted: Boolean
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
 
-    NavHost(navController = navController, startDestination = "user_list") {
+    val startDestination = if (isOnboardingCompleted) "user_list" else "onboarding"
+
+    NavHost(navController = navController, startDestination = startDestination) {
+
+        composable("onboarding") {
+            OnboardingScreen(
+                viewModel = settingsViewModel,
+                onFinish = {
+                    navController.navigate("user_list") {
+                        popUpTo("onboarding") { inclusive = true }
+                    }
+                }
+            )
+        }
 
         composable("user_list") {
             UserListScreen(
@@ -132,11 +162,18 @@ fun AppNavigation(
             if (selectedUserUiModel != null && userId != null) {
                 LaunchedEffect(userId) {
                     viewModel.loadOsmchaForUser(userId)
-                    viewModel.refreshUser(userId)
+                    viewModel.refreshUser(userId, force = false)
                 }
                 UserDetailScreen(
                     user = selectedUserUiModel.user,
                     analysis = selectedUserUiModel.analysis,
+                    osmchaState = uiState.osmchaState,
+                    osmchaLikes = uiState.osmchaLikes,
+                    osmchaDislikes = uiState.osmchaDislikes,
+                    osmchaLastChecked = selectedUserUiModel.osmchaLastChecked,
+                    lastUpdated = selectedUserUiModel.lastUpdated,
+                    isOnline = uiState.isOnline,
+                    onOsmchaRefresh = { viewModel.refreshOsmchaForUser(userId) },
                     onNavigateUp = { navController.navigateUp() },
                     onToggleWelcome = {
                         viewModel.toggleWelcomed(

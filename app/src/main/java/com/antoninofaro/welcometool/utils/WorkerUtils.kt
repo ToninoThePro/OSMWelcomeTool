@@ -12,19 +12,20 @@ import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 object WorkerUtils {
-    private const val WORK_NAME = "OsmSyncWork"
+    private const val OSM_SYNC_WORK_NAME = "OsmSyncWork"
+    const val MIN_WORKER_INTERVAL = 15
+    const val WORKER_BACKOFF_SECONDS = 30L
 
     fun scheduleOsmSyncWorker(context: Context, intervalMinutes: Int, enabled: Boolean) {
         val workManager = WorkManager.getInstance(context)
 
         if (!enabled) {
-            Timber.d("Worker disabled, cancelling existing work.")
-            workManager.cancelUniqueWork(WORK_NAME)
+            Timber.d("Workers disabled, cancelling existing work.")
+            workManager.cancelUniqueWork(OSM_SYNC_WORK_NAME)
             return
         }
 
-        // WorkManager minimum periodic interval is 15 minutes.
-        val safeInterval = intervalMinutes.coerceAtLeast(15).toLong()
+        val safeInterval = intervalMinutes.coerceAtLeast(MIN_WORKER_INTERVAL).toLong()
 
         Timber.d("Scheduling worker with interval: $safeInterval minutes (requested: $intervalMinutes)")
 
@@ -34,15 +35,15 @@ object WorkerUtils {
             .setRequiresStorageNotLow(true)
             .build()
 
-        val workRequest = PeriodicWorkRequestBuilder<OsmSyncWorker>(safeInterval, TimeUnit.MINUTES)
+        val request = PeriodicWorkRequestBuilder<OsmSyncWorker>(safeInterval, TimeUnit.MINUTES)
             .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WORKER_BACKOFF_SECONDS, TimeUnit.SECONDS)
             .build()
 
         workManager.enqueueUniquePeriodicWork(
-            WORK_NAME,
+            OSM_SYNC_WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
-            workRequest
+            request
         )
     }
 }
