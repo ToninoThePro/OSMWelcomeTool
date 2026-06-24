@@ -16,6 +16,8 @@
 -keep interface com.antoninofaro.welcometool.data.network.** { *; }
 -keep class com.antoninofaro.welcometool.data.network.** { *; }
 -keep class com.antoninofaro.welcometool.data.entity.** { *; }
+-keep class com.antoninofaro.welcometool.data.repository.AppSettings { *; }
+-keep class com.antoninofaro.welcometool.data.repository.MonitoringArea { *; }
 
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface

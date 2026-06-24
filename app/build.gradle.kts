@@ -4,6 +4,7 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("com.mikepenz.aboutlibraries.plugin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -13,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.antoninofaro.welcometool"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "0.1"
@@ -56,6 +57,10 @@ kotlin {
     jvmToolchain(17)
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
 
     ksp(libs.androidx.room.compiler)
@@ -94,7 +99,8 @@ dependencies {
 
     // Networking
     implementation(libs.retrofit)
-    implementation(libs.converter.gson)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.retrofit.kotlinx.serialization.converter)
     implementation(libs.okhttp)
     implementation(libs.logging.interceptor)
 
@@ -111,6 +117,9 @@ dependencies {
     // AboutLibraries - license detection
     implementation(libs.aboutlibraries.compose.m3)
 
+    // Markdown Renderer
+    implementation(libs.markdown.renderer)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -122,6 +131,7 @@ dependencies {
     testImplementation(libs.androidx.junit.ktx)
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.hilt.android.testing)
+    testImplementation(libs.okhttp.mockwebserver)
     kspTest(libs.hilt.compiler)
     testImplementation(libs.robolectric)
 
