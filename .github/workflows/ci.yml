@@ -15,7 +15,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - run: chmod +x gradlew
       - run: ./gradlew lintDebug
       - run: ./gradlew testDebugUnitTest
