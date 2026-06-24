@@ -27,7 +27,7 @@ fun ProfileAvatar(
     displayName: String,
     imageUrl: String?,
     modifier: Modifier = Modifier,
-    contentDescription: String = "Profile avatar",
+    contentDescription: String = "",
     size: Int = 128
 ) {
     // Get the image URL, using Gravatar as fallback
