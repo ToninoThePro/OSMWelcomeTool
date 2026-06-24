@@ -1,7 +1,9 @@
 package com.antoninofaro.welcometool.ui.screens
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
@@ -9,7 +11,8 @@ import com.antoninofaro.welcometool.data.repository.NominatimRepository
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmChaRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
-import com.antoninofaro.welcometool.utils.LogCaptureTree
+import com.antoninofaro.welcometool.utils.NotificationHelper
+import com.antoninofaro.welcometool.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,11 +31,12 @@ sealed interface TokenVerificationState {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val application: Application,
     private val settingsRepository: SettingsRepository,
     private val nominatimRepository: NominatimRepository,
     private val notifiedUserStorage: NotifiedUserStorage,
-    private val logCaptureTree: LogCaptureTree,
-    private val osmChaRepository: OsmChaRepository
+    private val osmChaRepository: OsmChaRepository,
+    private val notificationHelper: NotificationHelper
 ) : ViewModel() {
 
     private val _nominatimResults = MutableStateFlow<List<MonitoringArea>>(emptyList())
@@ -54,9 +58,15 @@ class SettingsViewModel @Inject constructor(
             initialValue = AppSettings()
         )
 
-    fun updateDarkMode(enabled: Boolean) {
+    fun updateThemeMode(mode: String) {
         viewModelScope.launch {
-            settingsRepository.updateDarkMode(enabled)
+            settingsRepository.updateThemeMode(mode)
+        }
+    }
+
+    fun updateDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateDynamicColor(enabled)
         }
     }
 
@@ -72,6 +82,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setOnboardingCompleted(completed: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateOnboardingCompleted(completed)
+        }
+    }
+
     fun searchAreas(query: String) {
         viewModelScope.launch {
             _isSearchingAreas.value = true
@@ -81,10 +97,9 @@ class SettingsViewModel @Inject constructor(
                 is Result.Success -> _nominatimResults.value = result.data
                 is Result.Error -> {
                     _nominatimResults.value = emptyList()
-                    _areaSearchError.value = result.message ?: "Errore ricerca aree"
+                    _areaSearchError.value = result.message ?: application.getString(R.string.error_area_search)
                 }
 
-                is Result.Loading -> Unit
             }
 
             _isSearchingAreas.value = false
@@ -120,6 +135,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateShowNewChangesetNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateShowNewChangesetNotifications(enabled)
+        }
+    }
+
     fun updateMinChangesetsFilter(min: Int) {
         viewModelScope.launch {
             settingsRepository.updateMinChangesetsFilter(min)
@@ -129,6 +150,12 @@ class SettingsViewModel @Inject constructor(
     fun updateCacheEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateCacheEnabled(enabled)
+        }
+    }
+
+    fun sendTestNotification() {
+        if (BuildConfig.DEBUG) {
+            notificationHelper.sendTestNotification()
         }
     }
 
@@ -144,9 +171,9 @@ class SettingsViewModel @Inject constructor(
             _tokenVerification.value = when (val result = osmChaRepository.verifyToken()) {
                 is Result.Success -> TokenVerificationState.Success(result.data)
                 is Result.Error -> TokenVerificationState.Error(
-                    result.message ?: "Token non valido o errore di connessione"
+                    result.message ?: application.getString(R.string.token_verify_error)
                 )
-                is Result.Loading -> TokenVerificationState.Verifying
+
             }
         }
     }
@@ -157,16 +184,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun resetToDefaults() {
+    fun updateOsmchaAutoRefreshDays(days: Int) {
         viewModelScope.launch {
-            settingsRepository.resetToDefaults()
+            settingsRepository.updateOsmchaAutoRefreshDays(days)
         }
     }
 
-    fun updateDebugLogsEnabled(enabled: Boolean) {
+    fun resetToDefaults() {
         viewModelScope.launch {
-            settingsRepository.updateDebugLogsEnabled(enabled)
-            logCaptureTree.setEnabled(enabled)
+            settingsRepository.resetToDefaults()
         }
     }
 
@@ -175,4 +201,7 @@ class SettingsViewModel @Inject constructor(
             notifiedUserStorage.clearAll()
         }
     }
+
+    fun getTokenVerifiedMessage(username: String): String =
+        application.getString(R.string.token_verified_snackbar, username)
 }
