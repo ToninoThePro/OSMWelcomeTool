@@ -1,13 +1,13 @@
 # OSM Welcome Tool — Code Reference
 
 ## Purpose
-Android app that monitors OpenStreetMap changesets in configurable areas, identifies newcomers, analyzes their profiles, and lets community members track who has been welcomed. Integrates OSMCha for quality signals, persists data locally, and supports background sync via WorkManager.
+Android app that monitors OpenStreetMap changesets, identifies newcomers, and tracks welcomed users. Integrates OSMCha, persists data locally, and supports background sync. Designed to be a **good API citizen** — minimizes load on OSM, Nominatim, and OSMCha servers. Features a "Cartographic Material" UI with expressive spacing and smooth transitions.
 
 ---
 
 ## Entry point
-`WelcomeToolApplication.kt` — `@HiltAndroidApp`, plants Timber, creates notification channel, initializes `LogCaptureTree`.
-`MainActivity.kt` — `@AndroidEntryPoint`, owns Compose NavHost with routes: `user_list`, `user_detail/{userId}`, `settings`.
+`WelcomeToolApplication.kt` — `@HiltAndroidApp`, initializes logging (Timber).
+`MainActivity.kt` — `@AndroidEntryPoint`, Navigation Host for `user_list`, `user_detail`, `settings`.
 
 ---
 
@@ -16,128 +16,135 @@ Android app that monitors OpenStreetMap changesets in configurable areas, identi
 ### `ui/screens/`
 | File | Role |
 |------|------|
-| `MainViewModel.kt` | Central coordinator. Fetches OSM changesets → extracts UIDs → loads user details + changeset history in parallel → runs `UserAnalyzer` → persists via `UserDao`. Holds `MainUiState` (users, filters, pagination). Paginates from Room with LOCAL_PAGE_SIZE=100. Semaphore(6) on concurrent API calls. |
-| `SettingsViewModel.kt` | Thin proxy over `SettingsRepository` + `NominatimRepository` + `LogCaptureTree`. Exposes `settings: StateFlow<AppSettings>`. |
-| `UserListScreen.kt` | Compose: `SearchBar` + `FilterChip` (newcomer/power user) + `PullToRefreshBox` + `LazyColumn` of `UserListItem` cards. "Load more" pagination footer. |
-| `UserDetailScreen.kt` | Compose: avatar, stats cards (newcomer/returning/pro), details list (created date, edits, OSMCha, last active), external links (HDYC, OSMCha, OSM profile), welcome toggle button. |
-| `SettingsScreen.kt` | Compose: dark mode toggle, auto-refresh interval slider, min edits filter, Nominatim area search, saved areas list, notifications on/off, OSMCha token input with validation, cache toggle, debug log capture toggle, reset to defaults. |
+| `MainViewModel.kt` | Fetches changesets → enriches details → `UserAnalyzer` → Persistence. Paginates Room (size 100). |
+| `UserListScreen.kt` | Expressive cards (24dp radius), Fading Edge scroll effect, Category filters, **stale data warning banner**. |
+| `UserDetailScreen.kt` | Large avatar (120dp) + name in `headlineMedium`, StatusCards, Detail cards (24dp radius), Action buttons. |
+| `SettingsScreen.kt` | Expandable sections with expressive spacing (20-24dp padding), Card-based UI (24dp radius), Fading Edge. |
 
-### `ui/components/`
+### `ui/theme/`
 | File | Role |
 |------|------|
-| `ProfileAvatar.kt` | Coil `AsyncImage` with Gravatar fallback (`AvatarUtils.getGravatarUrl`), then initial-letter fallback. |
+| `Color.kt` | Cartographic Material palette: Grass Green (Primary), Water Blue (Secondary), Earth Brown (Tertiary). |
+| `Type.kt` | Scale: Display-lg (57sp), Headline-lg (32sp), Title-lg (22sp), Body-lg (16sp). Plus Jakarta Sans approximation. |
+| `Theme.kt` | M3 Theme setup with Dynamic Color support. |
 
-### `data/model/`
-| File | Role |
-|------|------|
-| `Models.kt` | `OsmUser`, `OsmChangeset`, `OsmChangesetWrapper`, `OsmUserWrapper`, `CountWrapper`, `UserImage`, `OsmChaResponse`, `OsmChaFeature`, `OsmChaProperties`, `NominatimPlace` — Retrofit DTOs with `@SerializedName`. |
-| `Result.kt` | Sealed class `Success<T>` / `Error` / `Loading`. Extensions: `safeApiCall()`, `onSuccess`, `onError`, `log`, `getOrNull`, `getOrDefault`. |
-
-### `data/network/`
-| File | Role |
-|------|------|
-| `OsmApiService.kt` | Retrofit: `getRecentChangesets(bbox, time, limit)`, `getUserDetail(id)`, `getUserChangesets(userId)`, `getChangesetsByUsername(display_name)`. Base: `https://api.openstreetmap.org/`. |
-| `OsmChaService.kt` | Retrofit: `getUserChangesets(users)`. Base: `https://osmcha.org/api/v1/`. |
-| `NominatimApiService.kt` | Retrofit: `searchPlaces(q, format, limit)`. Base: `https://nominatim.openstreetmap.org/`. |
-
-### `data/entity/`
-| File | Role |
-|------|------|
-| `UserEntity.kt` | Room `@Entity(users)`: id (PK), displayName, accountCreated, description, accountAge, isNewcomer, isReturning, isPowerUser, totalEdits, firstChangesetDate, lastActiveDate, osmchaLikes, osmchaDislikes, isWelcomed, lastUpdated, imgUrl. |
-| `UserAreaActivityEntity.kt` | Room `@Entity(user_area_activity)`: composite PK(bbox, userId), lastChangesetDate, lastChangesetId, lastUpdated. Tracks which bbox a user was seen in. |
-
-### `data/local/`
-| File | Role |
-|------|------|
-| `AppDatabase.kt` | Room DB (version 1): `UserEntity` + `UserAreaActivityEntity`. `fallbackToDestructiveMigration(true)`. Singleton via double-checked locking. |
-| `UserDao.kt` | Room DAO: `insertUser`, `insertUsers`, `insertUserAreaActivities`, `getUserById`, `getUserIdsForBBox`, `getUserCountForBBox`, `getUsersForBBoxPage` (paginated join query sorted by lastChangesetDate DESC), `searchUsersForBBox` (LIKE on displayName), `observeAllUsers` (Flow), `updateWelcomedStatus`, `deleteAllUsers`. |
-| `UserAreaActivityWithUser.kt` | `@Embedded UserEntity` + bbox + lastChangesetDate + lastChangesetId + areaLastUpdated. Result type for JOIN queries. |
-
-### `data/repository/`
-| File | Role |
-|------|------|
-| `OsmRepository.kt` | Wraps `OsmApiService`. Methods: `fetchRecentChangesets(bbox, timeRange, limit)`, `fetchUserDetail(userId)`, `fetchUserChangesets(userId)`, `searchUserByUsername(username)`. All return `Result<T>`. |
-| `OsmChaRepository.kt` | Wraps `OsmChaService`. `getUserOsmChaStats(username)` → `Pair(likes, dislikes)`. Reads `osmchaChangesetsLimit` from settings. Handles HTTP 401/403 gracefully. |
-| `NominatimRepository.kt` | Wraps `NominatimApiService`. `searchAreas(query)` → `Result<List<MonitoringArea>>`. Converts Nominatim [south,north,west,east] to OSM [west,south,east,north] bbox format. |
-| `SettingsRepository.kt` | DataStore<Preferences> "settings". Exposes `settingsFlow: Flow<AppSettings>`. Individual `updateXxx()` methods for each field. OSMCha token handled via `SecureTokenStorage` with normalization. `AppSettings` data class contains: darkMode, autoRefresh, autoRefreshInterval, defaultBBox, defaultAreaName, showNotifications, minChangesetsFilter, cacheEnabled, osmchaToken, osmchaChangesetsLimit, lastKnownChangesetId, monitoringAreas, debugLogsEnabled. |
-| `NotifiedUserStorage.kt` | Thin wrapper over `SetDataStore` with key "notified_ids". Methods: `isNotified`, `markAsNotified`, `markAsNotifiedBatch`, `getAllNotifiedIds`, `removeNotified`, `clearAll`. |
-| `WelcomedUserStorage.kt` | Thin wrapper over `SetDataStore` with key "welcomed_ids". Methods: `isWelcomed`, `setWelcomed`, `getAllWelcomedIds`. |
-| `SetDataStore.kt` | Generic `Set<String>` persistence over DataStore. Constructor takes `DataStore<Preferences>` + `keyName`. Methods: `flow`, `getAll`, `contains`, `add`, `addAll`, `remove`, `clear`. |
-| `SecureTokenStorage.kt` | EncryptedSharedPreferences for OSMCha token. Methods: `saveOsmchaToken`, `getOsmchaToken`, `clearOsmchaToken`, `hasOsmchaToken`. Falls back to plain SharedPreferences if encryption setup fails. Has `injectTestPrefs()` for test injection. |
+### `data/`
+- `model/`: Retrofit DTOs (`OsmUser`, `OsmChaResponse`, `NominatimPlace`).
+- `entity/`: Room entities (`UserEntity`, `UserAreaActivityEntity`).
+- `network/`: API Services (`OsmApiService`, `OsmChaService`, `NominatimApiService`).
+- `repository/`: Network and local storage repositories. `SecureTokenStorage` for OSMCha encryption.
 
 ### `domain/`
-| File | Role |
-|------|------|
-| `UserAnalyzer.kt` | Pure stateless object. `analyze(user, userChangesets, recentChangeset, osmchaLikes, osmchaDislikes, now)` → `UserAnalysis`. Thresholds: newcomer = accountAge < 60 days, powerUser = totalEdits > 1000, returning = accountAge > 365 days AND totalEdits < 300. Uses thread-local `SimpleDateFormat` for ISO date parsing. |
+- `UserAnalyzer.kt`: Stateless classification: newcomer/returning/power-user.
 
 ### `worker/`
-| File | Role |
-|------|------|
-| `OsmSyncWorker.kt` | `@HiltWorker` — periodic via WorkManager. Reads settings, fetches 1 recent changeset, compares maxId with `lastKnownChangesetId`, sends notification if new ones found. First run saves ID without notification. |
-| `NewUserWorker.kt` | `@HiltWorker` — fetches changesets, deduplicates by UID, filters already-notified, processes remaining in parallel (Semaphore 6), runs `UserAnalyzer`, sends notification for newcomers, batch-marks notified. |
+- `OsmSyncWorker.kt`: Periodic check for new changesets and newcomers.
 
-### `utils/`
-| File | Role |
-|------|------|
-| `Constants.kt` | `DEFAULT_AREA_NAME = "Italia"`, `ITALY_BBOX = "6.6,35.3,18.6,47.2"`. |
-| `WorkerUtils.kt` | `scheduleOsmSyncWorker(context, intervalMinutes, enabled)` — enqueue/cancel `PeriodicWorkRequest<OsmSyncWorker>` with `NetworkType.CONNECTED` + battery/storage constraints. Minimum interval clamped to 15 min (WorkManager limit). |
-| `NotificationHelper.kt` | `@Singleton`. `createNotificationChannel()` (channel "osm_updates_channel"), `sendNewChangesetsNotification(newCount)` with PendingIntent to MainActivity. Checks `POST_NOTIFICATIONS` permission on API 33+. |
-| `LogCapture.kt` | `LogCaptureTree` (`@Singleton`, extends `Timber.Tree`) — ring buffer of 500 `LogEntry`s, toggleable via `setEnabled()`. Plants in `WelcomeToolApplication.onCreate`. |
-| `AvatarUtils.kt` | `getGravatarUrl(displayName, size)` → MD5 hash of `$normalizedName@openstreetmap.org` → Gravatar URL. `getProfileImageUrl(osmImageUrl, displayName, size)` — prioritizes OSM image, falls back to Gravatar. |
+---
 
-### `di/`
-| File | Role |
-|------|------|
-| `NetworkModule.kt` | `@Module`: provides `OsmApiService`, `OsmChaService` (with auth interceptor reading `SettingsRepository.getOsmchaTokenOnce()`), `NominatimApiService`. Each has its own OkHttpClient with cache (10 MB). |
-| `DatabaseModule.kt` | `@Module`: provides `AppDatabase` → `UserDao`. |
-| `DataStoreModule.kt` | `@Module`: provides `@NotifiedDataStore DataStore<Preferences>` + `@WelcomedDataStore DataStore<Preferences>` each backed by their own file. Also provides `ImageLoader` (Coil with separate OkHttpClient + 50 MB cache). |
-| `CoilModule.kt` | `@Module`: provides `ImageLoader` with Coil + OkHttp + 50 MB disk cache. |
+## Scan strategy (critical for API citizenship)
 
-### Other
-| File | Role |
-|------|------|
-| `WelcomeToolApplication.kt` | `@HiltAndroidApp`, `Configuration.Provider` for WorkManager. Creates notification channel "NEW_MAPPER_CHANNEL", plants `Timber.DebugTree` in debug + `LogCaptureTree`, loads initial debug log capture state from settings. |
-| `MainActivity.kt` | `@AndroidEntryPoint`. Creates both ViewModels. `LaunchedEffect` for auto-refresh scheduling + default bbox sync. Navigation: `user_list` → `user_detail/{id}` → `settings`. |
+### Constants
+| Constant | Value | Context |
+|----------|-------|---------|
+| `INITIAL_SCAN_WINDOWS` | 8 | `MainViewModel.kt` — max pages paginated on fresh start/bbox change |
+| `PERIODIC_SCAN_WINDOWS` | 1 | Worker's single-window check |
+| `MAX_DEEP_SCAN_WINDOWS` | 4 | Max total windows when catching up after missed changeset |
+| `LOCAL_PAGE_SIZE` | 100 | Room query page size |
+| `MAX_RECENT_CHANGESETS` | 100 | OSM API `limit` param (matches API max) |
+
+### Initial scan (`syncRecentUsersForCurrentBBox`)
+1. Fetches up to `INITIAL_SCAN_WINDOWS` pages of changesets (each `limit=100`), walking backward via cursor pagination.
+2. Cursor from each batch: oldest `createdAt` timestamp → next window's end bound.
+3. Early exit if a window returns empty (no more changesets).
+4. Deduplication: `seenUserIds` set prevents reprocessing the same UID across windows.
+5. Collects the **newest** changeset per user via `latestChangesetByUid` (`putIfAbsent`).
+
+### Periodic scan (`OsmSyncWorker`)
+1. Fetches **1 window** (100 changesets) for the monitored bbox.
+2. Compares against `lastKnownChangesetDate`:
+   - **Found** in batch → done. No further requests.
+   - **Not found** → paginate deeper, **up to `MAX_DEEP_SCAN_WINDOWS` total** (1 + 3 extra), trying to find it.
+   - If still not found after 4 windows → stop. The changeset may be too old or the user changed areas.
+3. This prevents routine re-fetching of hundreds of changesets per cycle.
+
+### User detail refresh
+- Stale users (Room `lastUpdated` > 24h) are fetched in batches of 50 from the batch OSM API (`/api/0.6/users.json?users=id1,id2,...`).
+- Users dormant > 15 days (`DORMANT_USER_THRESHOLD_MS`) are skipped even if TTL expired.
+
+---
+
+## Offline behavior
+- Room data is served regardless of connectivity.
+- `UserListScreen` shows a **stale data warning** (banner/card) when no fresh data is available, including `lastUpdated` timestamp from the most recent fetch.
+- ViewModel tracks sync status; UI observes it.
+- No automatic retry on reconnection — waits for next scheduled worker or user-triggered sync.
+
+---
+
+## Caching layers (top to bottom)
+
+| Layer | Detail | TTL |
+|-------|--------|-----|
+| OkHttp disk cache (50 MB, shared) | Shared across all OkHttp clients | Depends on server Cache-Control |
+| Network interceptor Cache-Control | OSM user profiles: 86400s, changesets: 300s | 24h / 5m |
+| | OSMCha: 3600s | 1h |
+| Application TTL (`MainViewModel`) | `USER_CACHE_TTL_MS` | 24h |
+| | `CACHE_PAGE_TTL_MS` | 30m |
+| | `OSMCHA_AUTO_REFRESH_DAYS` | 1d |
+| Room database | Indefinite persistence | No eviction (yet) |
+| DataStore (registries) | Welcomed/notified IDs | Indefinite |
+
+**Gap**: `settings.cacheEnabled` flag is persisted but not wired to runtime cache. See `data/ROADMAP.md`.
+
+---
+
+## Rate limiting (current state)
+- No HTTP 429 detection or handling yet.
+- `safeApiCall()` catches exceptions but doesn't parse `Retry-After` headers or implement backoff.
+- WorkManager worker has `EXPONENTIAL` backoff (30s base) on failure.
+- `retryOnConnectionFailure(true)` on OkHttp handles TCP-level retransmission only.
+- **Priority**: implement rate limit awareness before adding new API consumers.
+
+---
+
+## Room schema
+- `users`: Core profile and analysis status.
+- `user_area_activity`: User presence across bboxes (Composite PK: `bbox`, `userId`).
+
+---
+
+## External APIs
+
+| Service | Base URL | Notes |
+|---------|----------|-------|
+| OSM API | `https://api.openstreetmap.org/` | Public, no auth needed for reads |
+| OSMCha | `https://osmcha.org/api/v1/` | Bearer token (AES256 encrypted) |
+| Nominatim | `https://nominatim.openstreetmap.org/` | Requires `User-Agent` header. Respect usage policy (1 req/sec recommended). |
+
+---
+
+## Key constants
+| Constant | Value | File |
+|----------|-------|------|
+| OSMCha token length | 40 | `SecureTokenStorage.kt` |
+| WorkManager min period | 15 min | `WorkerUtils.kt` |
+| Default sync interval | 30 min | `SettingsScreen.kt` |
+| User cache TTL | 24h | `MainViewModel.kt` |
+| Dormant user threshold | 15 days | `MainViewModel.kt` |
+| Primary Color | `#436900` (Grass Green) | `Color.kt` |
 
 ---
 
 ## Data flow (detailed)
-1. `MainViewModel.loadData()` fetches recent changesets from OSM API (paginated across up to 6 scan windows of 100 each).
-2. Extracts unique UIDs, processes each in parallel (semaphore = 6).
-3. For each UID: checks Room cache (TTL = 24 h), if stale → parallel `fetchUserDetail` + `fetchUserChangesets` from OSM, runs `UserAnalyzer.analyze()`, saves to Room.
-4. `UserAreaActivityEntity` tracks which bbox each user was seen in (join table for multi-area queries).
-5. Results served from Room via paginated JOIN query (`UserDao.getUsersForBBoxPage`).
-6. OSMCha stats loaded on demand when user detail screen opens (`loadOsmchaForUser`).
+1. `MainViewModel` scans changeset windows (8 initial / 1 periodic + up to 3 deep).
+2. Parallel processing (`Semaphore(6)`) for user profiles only in worker context.
+3. 24h cache TTL for user data in Room.
+4. UI served via paginated JOIN queries (`UserDao.getUsersForBBoxPage`).
+5. If offline or stale, UI shows warning + `lastUpdated` timestamp.
 
-## DI graph
-```
-AppDatabase → UserDao
-NetworkModule → OsmApiService, OsmChaService, NominatimApiService
-DataStoreModule → @NotifiedDataStore DataStore, @WelcomedDataStore DataStore
-CoilModule → ImageLoader
-All ViewModels: @HiltViewModel with @Inject constructor
-All Workers: @HiltWorker with @AssistedInject
-```
-
-## Testing
-- `app/src/test/java/` — JUnit4 + Mockito + Robolectric.
-- Key tests: `OsmRepositoryTest`, `OsmChaRepositoryTest`, `SecureTokenStorageTest`, `UserAnalyzerTest`, `NewUserWorkerLogicTest`.
-- `./gradlew testDebugUnitTest` to run.
-- `./gradlew lintDebug` + `./gradlew assembleDebug` for CI-equivalent verification.
-- `NotifiedUserStorageTest` / `TokenMigrationIntegrationTest` use in-memory DataStore files; may fail on Windows due to Robolectric file locks (pre-existing).
-
-## Room schema
-```
-users (id PK, displayName, accountCreated, description, accountAge, isNewcomer,
-       isReturning, isPowerUser, totalEdits, firstChangesetDate, lastActiveDate,
-       osmchaLikes, osmchaDislikes, isWelcomed, lastUpdated, imgUrl)
-
-user_area_activity (bbox PK, userId PK, lastChangesetDate, lastChangesetId, lastUpdated)
-```
-
-## Key strings / queries
-- `UserDao.getUsersForBBoxPage`: `INNER JOIN users u ON u.id = a.userId WHERE a.bbox = :bbox ORDER BY a.lastChangesetDate DESC LIMIT :limit OFFSET :offset`
-- OSM bbox format: `"min_lon,min_lat,max_lon,max_lat"` (e.g., `"6.6,35.3,18.6,47.2"` for Italy)
-- OSMCha token expected length: 40 characters
-- WorkManager minimum period: 15 minutes
-- User cache TTL: 24 hours
+## UI Patterns (Cartographic Material / Stitch Design)
+- **Rounded Edges**: Main containers use `RoundedCornerShape(24.dp)`.
+- **Fading Edge**: Scroll areas use `verticalGradient` with `BlendMode.DstIn` to soften top transitions.
+- **Expressive Spacing**: Internal padding of 20dp-24dp in cards.
+- **Stale data states**: Warning banner indicating data recency (shown when connectivity lost or cache expired).
