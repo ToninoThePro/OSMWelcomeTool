@@ -28,6 +28,12 @@ local.properties
 # Log files
 *.log
 
+# Stitch artifacts
+.artifacts/
+
+# Release build output
+/app/release/
+
 # Gradle properties (potrebbe contenere credenziali)
 # gradle.properties
 

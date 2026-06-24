@@ -1,0 +1,207 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "a2374533b2d9105dc311fe3b0ce2c683",
+    "entities": [
+      {
+        "tableName": "users",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `displayName` TEXT NOT NULL, `accountCreated` TEXT NOT NULL, `description` TEXT, `accountAge` INTEGER NOT NULL, `isNewcomer` INTEGER NOT NULL, `isReturning` INTEGER NOT NULL, `isPowerUser` INTEGER NOT NULL, `totalEdits` INTEGER NOT NULL, `firstChangesetDate` TEXT, `lastActiveDate` TEXT, `osmchaLikes` INTEGER NOT NULL, `osmchaDislikes` INTEGER NOT NULL, `osmchaLastChecked` INTEGER NOT NULL, `isWelcomed` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, `imgUrl` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountCreated",
+            "columnName": "accountCreated",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "accountAge",
+            "columnName": "accountAge",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isNewcomer",
+            "columnName": "isNewcomer",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isReturning",
+            "columnName": "isReturning",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPowerUser",
+            "columnName": "isPowerUser",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalEdits",
+            "columnName": "totalEdits",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstChangesetDate",
+            "columnName": "firstChangesetDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastActiveDate",
+            "columnName": "lastActiveDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "osmchaLikes",
+            "columnName": "osmchaLikes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "osmchaDislikes",
+            "columnName": "osmchaDislikes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "osmchaLastChecked",
+            "columnName": "osmchaLastChecked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isWelcomed",
+            "columnName": "isWelcomed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imgUrl",
+            "columnName": "imgUrl",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_users_displayName",
+            "unique": false,
+            "columnNames": [
+              "displayName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_users_displayName` ON `${TABLE_NAME}` (`displayName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "user_area_activity",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`bbox` TEXT NOT NULL, `userId` INTEGER NOT NULL, `lastChangesetDate` TEXT NOT NULL, `lastChangesetId` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`bbox`, `userId`))",
+        "fields": [
+          {
+            "fieldPath": "bbox",
+            "columnName": "bbox",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "userId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastChangesetDate",
+            "columnName": "lastChangesetDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastChangesetId",
+            "columnName": "lastChangesetId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "bbox",
+            "userId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_user_area_activity_lastChangesetDate",
+            "unique": false,
+            "columnNames": [
+              "lastChangesetDate"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_area_activity_lastChangesetDate` ON `${TABLE_NAME}` (`lastChangesetDate`)"
+          },
+          {
+            "name": "index_user_area_activity_bbox_userId",
+            "unique": false,
+            "columnNames": [
+              "bbox",
+              "userId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_area_activity_bbox_userId` ON `${TABLE_NAME}` (`bbox`, `userId`)"
+          },
+          {
+            "name": "index_user_area_activity_bbox",
+            "unique": false,
+            "columnNames": [
+              "bbox"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_area_activity_bbox` ON `${TABLE_NAME}` (`bbox`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a2374533b2d9105dc311fe3b0ce2c683')"
+    ]
+  }
+}
