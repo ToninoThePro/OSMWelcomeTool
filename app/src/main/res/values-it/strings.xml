@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">WelcomeTool</string>
-    <string name="settings">Impostazioni</string>
-    <string name="search_mapper">Cerca mappatore...</string>
-    <string name="novices">Novizi</string>
-    <string name="power_users">Power User</string>
-</resources>
-

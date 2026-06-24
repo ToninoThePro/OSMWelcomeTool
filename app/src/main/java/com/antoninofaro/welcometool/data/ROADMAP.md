@@ -1,6 +1,6 @@
 # Data & Networking Roadmap
 
-- [ ] Gestire rate limiting e retry espliciti sulle API OSM (429, timeout)
-- [ ] Collegare `settings.cacheEnabled` alla logica di cache runtime (oggi flag solo persistita)
-- [ ] Sync incrementale usando `lastKnownChangesetId`
-- [ ] Export utenti accolti (CSV/JSON)
+- [ ] Handle explicit rate limiting and retries for OSM APIs (429, timeouts).
+- [ ] Connect `settings.cacheEnabled` to runtime cache logic (currently only persisted flag).
+- [ ] Incremental sync using `lastKnownChangesetId`.
+- [ ] Export welcomed users data (CSV/JSON).

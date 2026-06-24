@@ -1,6 +1,6 @@
 # Domain & Business Logic Roadmap
 
-- [ ] Rendere configurabili le soglie di `UserAnalyzer` (mantenendo i default correnti)
-- [ ] Aggiungere flag di rischio (es. molti dislike OSMCha in breve tempo)
-- [ ] Filtri testuali opzionali sulla bio utente
-- [ ] Template per messaggi di benvenuto suggeriti
+- [ ] Make `UserAnalyzer` thresholds configurable (preserving current defaults).
+- [ ] Add risk flags (e.g., high volume of OSMCha dislikes in a short time).
+- [ ] Optional text filters for user biography.
+- [ ] Templates for suggested welcome messages.
