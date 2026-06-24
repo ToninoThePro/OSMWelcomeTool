@@ -10,8 +10,8 @@ import com.antoninofaro.welcometool.data.local.dao.UserDao
 
 @Database(
     entities = [UserEntity::class, UserAreaActivityEntity::class],
-    version = 1,
-    exportSchema = false
+    version = 2,
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao

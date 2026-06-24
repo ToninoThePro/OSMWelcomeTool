@@ -8,7 +8,8 @@ import androidx.room.Index
     tableName = "user_area_activity",
     primaryKeys = ["bbox", "userId"],
     indices = [
-        Index(value = ["lastChangesetDate"])
+        Index(value = ["lastChangesetDate"]),
+        Index(value = ["bbox", "userId"])
     ]
 )
 data class UserAreaActivityEntity(

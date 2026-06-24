@@ -22,6 +22,9 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: Long): UserEntity?
 
+    @Query("SELECT * FROM users WHERE id IN (:uids)")
+    suspend fun getUsersByIds(uids: List<Long>): List<UserEntity>
+
     @Query(
         """
         SELECT u.*, a.bbox AS bbox, a.lastChangesetDate AS lastChangesetDate,
@@ -45,7 +48,7 @@ interface UserDao {
                a.lastChangesetId AS lastChangesetId, a.lastUpdated AS areaLastUpdated
         FROM users u
         INNER JOIN user_area_activity a ON u.id = a.userId
-        WHERE a.bbox = :bbox AND u.displayName LIKE :searchTerm
+        WHERE a.bbox = :bbox AND u.displayName LIKE :searchTerm ESCAPE '\\'
         ORDER BY a.lastChangesetDate DESC, a.lastChangesetId DESC, a.lastUpdated DESC
         """
     )
@@ -59,5 +62,14 @@ interface UserDao {
         userId: Long,
         isWelcomed: Boolean,
         updatedAt: Long
+    )
+
+    @Query("UPDATE users SET osmchaLikes = :likes, osmchaDislikes = :dislikes, osmchaLastChecked = :lastChecked, lastUpdated = :lastUpdated WHERE id = :userId")
+    suspend fun updateOsmchaStats(
+        userId: Long,
+        likes: Int,
+        dislikes: Int,
+        lastChecked: Long,
+        lastUpdated: Long
     )
 }

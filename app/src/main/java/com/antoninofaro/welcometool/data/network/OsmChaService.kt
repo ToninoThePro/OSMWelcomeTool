@@ -1,38 +1,45 @@
 package com.antoninofaro.welcometool.data.network
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface OsmChaService {
-    @GET("changesets/")
-    suspend fun getUserChangesets(
-        @Query("users") username: String
+    @GET("changesets/checked/")
+    suspend fun getCheckedChangesets(
+        @Query("users") username: String,
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 100
     ): OsmChaResponse
 
     @GET("users/")
     suspend fun getCurrentUser(): OsmChaUserResponse
 }
 
+@Serializable
 data class OsmChaResponse(
     val count: Int,
     val features: List<OsmChaFeature>
 )
 
+@Serializable
 data class OsmChaUserResponse(
     val username: String
 )
 
+@Serializable
 data class OsmChaFeature(
     val properties: OsmChaProperties
 )
 
+@Serializable
 data class OsmChaProperties(
-    @SerializedName("check_user")
+    @SerialName("check_user")
     val checkUser: String? = null,
-    @SerializedName("checked")
+    @SerialName("checked")
     val isChecked: Boolean = false,
     val harmful: Boolean? = null,
-    @SerializedName("is_suspect")
+    @SerialName("is_suspect")
     val isSuspect: Boolean = false
 )

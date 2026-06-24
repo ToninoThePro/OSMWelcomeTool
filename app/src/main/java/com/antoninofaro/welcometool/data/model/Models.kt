@@ -1,61 +1,74 @@
 package com.antoninofaro.welcometool.data.model
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import androidx.compose.runtime.Immutable
 
+@Serializable
 data class OsmUserWrapper(
-    @SerializedName("user")
+    @SerialName("user")
     val user: OsmUser
 )
 
-@Immutable
-data class OsmUser(
-    val id: Long,
-    @SerializedName("display_name")
-    val displayName: String,
-    @SerializedName("account_created")
-    val accountCreated: String,
-    val description: String?,
-    val img: UserImage?,
-    val roles: List<String>?,
-    val changesets: CountWrapper?,
-    val traces: CountWrapper?,
+@Serializable
+data class OsmUsersWrapper(
+    @SerialName("users")
+    val users: List<OsmUserWrapper>
 )
 
+@Immutable
+@Serializable
+data class OsmUser(
+    val id: Long,
+    @SerialName("display_name")
+    val displayName: String,
+    @SerialName("account_created")
+    val accountCreated: String,
+    val description: String? = null,
+    val img: UserImage? = null,
+    val roles: List<String>? = null,
+    val changesets: CountWrapper? = null,
+    val traces: CountWrapper? = null,
+)
+
+@Serializable
 data class UserImage(
     val href: String
 )
 
+@Serializable
 data class CountWrapper(
     val count: Int
 )
 
+@Serializable
 data class OsmChangesetWrapper(
-    @SerializedName("changesets")
+    @SerialName("changesets")
     val changesets: List<OsmChangeset>
 )
 
 @Immutable
+@Serializable
 data class OsmChangeset(
     val id: Long,
-    @SerializedName("created_at")
+    @SerialName("created_at")
     val createdAt: String,
-    @SerializedName("closed_at")
-    val closedAt: String,
-    val open: Boolean,
-    val user: String,
-    val uid: Long,
-    @SerializedName("min_lat")
-    val minLat: Double,
-    @SerializedName("min_lon")
-    val minLon: Double,
-    @SerializedName("max_lat")
-    val maxLat: Double,
-    @SerializedName("max_lon")
-    val maxLon: Double,
-    @SerializedName("num_changes")
-    val numChanges: Int,
-    @SerializedName("comments_count")
-    val commentsCount: Int,
-    val tags: Map<String, String>?
+    @SerialName("closed_at")
+    val closedAt: String? = null,
+    val open: Boolean = false,
+    val user: String = "",
+    val uid: Long = 0,
+    @SerialName("min_lat")
+    val minLat: Double? = null,
+    @SerialName("min_lon")
+    val minLon: Double? = null,
+    @SerialName("max_lat")
+    val maxLat: Double? = null,
+    @SerialName("max_lon")
+    val maxLon: Double? = null,
+    @SerialName("num_changes")
+    val numChanges: Int = 0,
+    @SerialName("comments_count")
+    val commentsCount: Int = 0,
+    val tags: Map<String, String>? = null
 )

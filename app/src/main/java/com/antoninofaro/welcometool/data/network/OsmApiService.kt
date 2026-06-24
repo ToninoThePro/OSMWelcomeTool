@@ -2,6 +2,7 @@ package com.antoninofaro.welcometool.data.network
 
 import com.antoninofaro.welcometool.data.model.OsmChangesetWrapper
 import com.antoninofaro.welcometool.data.model.OsmUserWrapper
+import com.antoninofaro.welcometool.data.model.OsmUsersWrapper
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -19,9 +20,15 @@ interface OsmApiService {
         @retrofit2.http.Path("id") id: Long
     ): OsmUserWrapper
 
+    @GET("api/0.6/users.json")
+    suspend fun getUsersDetails(
+        @Query("users") userIds: String
+    ): OsmUsersWrapper
+
     @GET("api/0.6/changesets.json")
     suspend fun getUserChangesets(
-        @Query("user") userId: Long
+        @Query("user") userId: Long,
+        @Query("limit") limit: Int = 100
     ): OsmChangesetWrapper
 
     @GET("api/0.6/changesets.json")

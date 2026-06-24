@@ -10,11 +10,12 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.antoninofaro.welcometool.utils.Constants
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,21 +23,26 @@ import javax.inject.Singleton
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 data class AppSettings(
-    val darkMode: Boolean = false,
+    val themeMode: String = "system",
+    val dynamicColor: Boolean = false,
     val autoRefresh: Boolean = true,
     val autoRefreshInterval: Int = 30,
     val defaultBBox: String = Constants.ITALY_BBOX,
     val defaultAreaName: String = Constants.DEFAULT_AREA_NAME,
-    val showNotifications: Boolean = true,
+    val showNotifications: Boolean = false,
+    val showNewChangesetNotifications: Boolean = false,
     val minChangesetsFilter: Int = 0,
     val cacheEnabled: Boolean = true,
     val osmchaToken: String = "",
     val osmchaChangesetsLimit: Int = 100,
     val lastKnownChangesetId: Long = 0L,
+    val lastKnownChangesetDate: String = "",
+    val osmchaAutoRefreshDays: Int = 1,
     val monitoringAreas: List<MonitoringArea> = defaultMonitoringAreas(),
-    val debugLogsEnabled: Boolean = false
+    val isOnboardingCompleted: Boolean = false,
 )
 
+@Serializable
 data class MonitoringArea(
     val name: String,
     val bbox: String
@@ -49,51 +55,58 @@ private fun defaultMonitoringAreas(): List<MonitoringArea> = listOf(
 @Singleton
 class SettingsRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val secureTokenStorage: SecureTokenStorage
+    private val secureTokenStorage: SecureTokenStorage,
+    private val json: Json
 ) {
     private val dataStore = context.dataStore
-    private val gson = Gson()
+    private var cachedOsmchaToken: String = secureTokenStorage.getOsmchaToken()
 
     companion object {
-        private val DARK_MODE = booleanPreferencesKey("dark_mode")
+        private val THEME_MODE = stringPreferencesKey("theme_mode")
+        private val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         private val AUTO_REFRESH = booleanPreferencesKey("auto_refresh")
         private val AUTO_REFRESH_INTERVAL = intPreferencesKey("auto_refresh_interval")
         private val DEFAULT_BBOX = stringPreferencesKey("default_bbox")
         private val DEFAULT_AREA_NAME = stringPreferencesKey("default_area_name")
         private val SHOW_NOTIFICATIONS = booleanPreferencesKey("show_notifications")
+        private val SHOW_NEW_CHANGESET_NOTIFICATIONS = booleanPreferencesKey("show_new_changeset_notifications")
         private val MIN_CHANGESETS_FILTER = intPreferencesKey("min_changesets_filter")
         private val CACHE_ENABLED = booleanPreferencesKey("cache_enabled")
-        private val OSMCHA_TOKEN = stringPreferencesKey("osmcha_token")
+
         private val OSMCHA_CHANGESETS_LIMIT = intPreferencesKey("osmcha_changesets_limit")
         private val LAST_KNOWN_CHANGESET_ID = longPreferencesKey("last_known_changeset_id")
+        private val LAST_KNOWN_CHANGESET_DATE = stringPreferencesKey("last_known_changeset_date")
+        private val OSMCHA_AUTO_REFRESH_DAYS = intPreferencesKey("osmcha_auto_refresh_days")
         private val MONITORING_AREAS_JSON = stringPreferencesKey("monitoring_areas_json")
-        private val DEBUG_LOGS_ENABLED = booleanPreferencesKey("debug_logs_enabled")
+        private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
     }
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { preferences ->
         AppSettings(
-            darkMode = preferences[DARK_MODE] ?: false,
+            themeMode = preferences[THEME_MODE] ?: "system",
+            dynamicColor = preferences[DYNAMIC_COLOR] ?: false,
             autoRefresh = preferences[AUTO_REFRESH] ?: true,
             autoRefreshInterval = preferences[AUTO_REFRESH_INTERVAL] ?: 30,
             defaultBBox = preferences[DEFAULT_BBOX] ?: Constants.ITALY_BBOX,
             defaultAreaName = preferences[DEFAULT_AREA_NAME] ?: Constants.DEFAULT_AREA_NAME,
-            showNotifications = preferences[SHOW_NOTIFICATIONS] ?: true,
+            showNotifications = preferences[SHOW_NOTIFICATIONS] ?: false,
+            showNewChangesetNotifications = preferences[SHOW_NEW_CHANGESET_NOTIFICATIONS] ?: false,
             minChangesetsFilter = preferences[MIN_CHANGESETS_FILTER] ?: 0,
             cacheEnabled = preferences[CACHE_ENABLED] ?: true,
-            osmchaToken = secureTokenStorage.getOsmchaToken(),
+            osmchaToken = cachedOsmchaToken,
             osmchaChangesetsLimit = preferences[OSMCHA_CHANGESETS_LIMIT] ?: 100,
             lastKnownChangesetId = preferences[LAST_KNOWN_CHANGESET_ID] ?: 0L,
+            lastKnownChangesetDate = preferences[LAST_KNOWN_CHANGESET_DATE] ?: "",
+            osmchaAutoRefreshDays = preferences[OSMCHA_AUTO_REFRESH_DAYS] ?: 1,
             monitoringAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON]),
-            debugLogsEnabled = preferences[DEBUG_LOGS_ENABLED] ?: false
+            isOnboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
         )
     }
 
     private fun decodeMonitoringAreas(serialized: String?): List<MonitoringArea> {
         if (serialized.isNullOrBlank()) return defaultMonitoringAreas()
         return try {
-            val type = object : TypeToken<List<MonitoringArea>>() {}.type
-            val parsed: List<MonitoringArea>? = gson.fromJson(serialized, type)
-            parsed.orEmpty().ifEmpty { defaultMonitoringAreas() }
+            json.decodeFromString<List<MonitoringArea>>(serialized).ifEmpty { defaultMonitoringAreas() }
         } catch (e: Exception) {
             Timber.w(e, "Invalid monitoring areas payload, using defaults")
             defaultMonitoringAreas()
@@ -101,26 +114,20 @@ class SettingsRepository @Inject constructor(
     }
 
     private fun encodeMonitoringAreas(areas: List<MonitoringArea>): String {
-        return gson.toJson(areas)
+        return json.encodeToString(areas)
     }
 
-    suspend fun updateDarkMode(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[DARK_MODE] = enabled
-        }
+    private suspend fun <T> updatePreference(key: Preferences.Key<T>, value: T) {
+        dataStore.edit { it[key] = value }
     }
 
-    suspend fun updateAutoRefresh(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[AUTO_REFRESH] = enabled
-        }
-    }
+    suspend fun updateThemeMode(mode: String) = updatePreference(THEME_MODE, mode)
 
-    suspend fun updateAutoRefreshInterval(minutes: Int) {
-        dataStore.edit { preferences ->
-            preferences[AUTO_REFRESH_INTERVAL] = minutes
-        }
-    }
+    suspend fun updateDynamicColor(enabled: Boolean) = updatePreference(DYNAMIC_COLOR, enabled)
+
+    suspend fun updateAutoRefresh(enabled: Boolean) = updatePreference(AUTO_REFRESH, enabled)
+
+    suspend fun updateAutoRefreshInterval(minutes: Int) = updatePreference(AUTO_REFRESH_INTERVAL, minutes)
 
     suspend fun addMonitoringArea(area: MonitoringArea) {
         dataStore.edit { preferences ->
@@ -158,57 +165,38 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun updateShowNotifications(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[SHOW_NOTIFICATIONS] = enabled
-        }
-    }
+    suspend fun updateShowNotifications(enabled: Boolean) = updatePreference(SHOW_NOTIFICATIONS, enabled)
 
-    suspend fun updateMinChangesetsFilter(min: Int) {
-        dataStore.edit { preferences ->
-            preferences[MIN_CHANGESETS_FILTER] = min
-        }
-    }
+    suspend fun updateShowNewChangesetNotifications(enabled: Boolean) = updatePreference(SHOW_NEW_CHANGESET_NOTIFICATIONS, enabled)
 
-    suspend fun updateCacheEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[CACHE_ENABLED] = enabled
-        }
-    }
+    suspend fun updateMinChangesetsFilter(min: Int) = updatePreference(MIN_CHANGESETS_FILTER, min)
 
+    suspend fun updateCacheEnabled(enabled: Boolean) = updatePreference(CACHE_ENABLED, enabled)
 
     suspend fun updateOsmchaToken(token: String) {
-        secureTokenStorage.saveOsmchaToken(normalizeOsmchaToken(token))
-        dataStore.edit { preferences ->
-            preferences.remove(OSMCHA_TOKEN)
-        }
+        val normalized = normalizeOsmchaToken(token)
+        secureTokenStorage.saveOsmchaToken(normalized)
+        cachedOsmchaToken = normalized
     }
 
     fun getOsmchaTokenOnce(): String = secureTokenStorage.getOsmchaToken()
 
-    suspend fun updateOsmchaChangesetsLimit(limit: Int) {
-        dataStore.edit { preferences ->
-            preferences[OSMCHA_CHANGESETS_LIMIT] = limit
-        }
-    }
+    suspend fun updateOsmchaChangesetsLimit(limit: Int) = updatePreference(OSMCHA_CHANGESETS_LIMIT, limit)
 
-    suspend fun updateLastKnownChangesetId(id: Long) {
-        dataStore.edit { preferences ->
-            preferences[LAST_KNOWN_CHANGESET_ID] = id
-        }
-    }
+    suspend fun updateLastKnownChangesetId(id: Long) = updatePreference(LAST_KNOWN_CHANGESET_ID, id)
 
-    suspend fun updateDebugLogsEnabled(enabled: Boolean) {
-        dataStore.edit { preferences ->
-            preferences[DEBUG_LOGS_ENABLED] = enabled
-        }
-    }
+    suspend fun updateLastKnownChangesetDate(date: String) = updatePreference(LAST_KNOWN_CHANGESET_DATE, date)
+
+    suspend fun updateOsmchaAutoRefreshDays(days: Int) = updatePreference(OSMCHA_AUTO_REFRESH_DAYS, days)
+
+    suspend fun updateOnboardingCompleted(completed: Boolean) = updatePreference(ONBOARDING_COMPLETED, completed)
 
     suspend fun resetToDefaults() {
         dataStore.edit { preferences ->
             preferences.clear()
         }
         secureTokenStorage.clearOsmchaToken()
+        cachedOsmchaToken = ""
     }
 }
 

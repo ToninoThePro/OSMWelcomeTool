@@ -57,9 +57,25 @@ class OsmRepository @Inject constructor(
         }
     }
 
-    suspend fun fetchUserChangesets(userId: Long): Result<List<OsmChangeset>> {
+    suspend fun fetchUsersDetails(userIds: List<Long>): Result<List<OsmUser>> {
+        if (userIds.isEmpty()) return Result.Success(emptyList())
         return safeApiCall {
-            val response = apiService.getUserChangesets(userId)
+            val response = apiService.getUsersDetails(userIds.joinToString(","))
+            response.users.map { it.user }
+        }.also { result ->
+            if (result.isError) {
+                Timber.e(result.exceptionOrNull(), "Error fetching users details for ids: $userIds")
+            } else {
+                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} users details")
+            }
+        }
+    }
+
+
+
+    suspend fun fetchUserChangesets(userId: Long, limit: Int = 100): Result<List<OsmChangeset>> {
+        return safeApiCall {
+            val response = apiService.getUserChangesets(userId, limit)
             response.changesets.sortedByDescending { it.createdAt }
         }.also { result ->
             if (result.isError) {
@@ -74,7 +90,7 @@ class OsmRepository @Inject constructor(
         return safeApiCall {
             val changesetResponse = apiService.getChangesetsByUsername(username)
             val uid = changesetResponse.changesets.firstOrNull()?.uid
-                ?: throw Exception("Utente non trovato o nessun changeset disponibile per: $username")
+                ?: throw Exception("User not found or no changesets available for: $username")
             val userResponse = apiService.getUserDetail(uid)
             userResponse.user
         }.also { result ->

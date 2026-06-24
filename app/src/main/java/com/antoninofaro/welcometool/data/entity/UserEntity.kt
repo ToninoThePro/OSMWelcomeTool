@@ -21,6 +21,7 @@ data class UserEntity(
     val lastActiveDate: String?,
     val osmchaLikes: Int,
     val osmchaDislikes: Int,
+    val osmchaLastChecked: Long = 0L,
     val isWelcomed: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis(),
     val imgUrl: String? = null

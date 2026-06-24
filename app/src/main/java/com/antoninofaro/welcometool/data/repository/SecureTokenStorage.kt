@@ -11,6 +11,7 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.content.edit
+import java.util.concurrent.ConcurrentHashMap
 
 @Singleton
 class SecureTokenStorage @Inject constructor(
@@ -21,7 +22,6 @@ class SecureTokenStorage @Inject constructor(
         const val KEY_OSMCHA_TOKEN = "osmcha_token"
     }
 
-    // ponytail: allows tests to inject plain SharedPreferences instead of EncryptedSharedPreferences
     internal fun injectTestPrefs(prefs: SharedPreferences) {
         encryptedPrefs = prefs
     }
@@ -39,18 +39,21 @@ class SecureTokenStorage @Inject constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            Timber.e(e, "EncryptedSharedPreferences failed, using plain")
-            context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+            Timber.e(e, "EncryptedSharedPreferences failed, using in-memory store")
+            inMemoryPrefs
         }
     }
 
     fun saveOsmchaToken(token: String) {
+        Timber.d("SecureTokenStorage: saving token (len=%d)", token.length)
         encryptedPrefs.edit { putString(KEY_OSMCHA_TOKEN, token) }
     }
 
     fun getOsmchaToken(): String {
         return try {
-            encryptedPrefs.getString(KEY_OSMCHA_TOKEN, "") ?: ""
+            val stored = encryptedPrefs.getString(KEY_OSMCHA_TOKEN, "") ?: ""
+            Timber.d("SecureTokenStorage: retrieved token (len=%d)", stored.length)
+            stored
         } catch (e: Exception) {
             Timber.e(e, "Failed to retrieve OSMCha token")
             ""
@@ -62,4 +65,35 @@ class SecureTokenStorage @Inject constructor(
     }
 
     fun hasOsmchaToken(): Boolean = getOsmchaToken().isNotBlank()
+}
+
+private val inMemoryPrefs = object : SharedPreferences {
+    private val map = ConcurrentHashMap<String, String?>()
+
+    override fun getString(key: String?, def: String?) = key?.let { map[it] } ?: def
+    override fun contains(key: String?) = key != null && map.containsKey(key)
+    override fun getAll() = HashMap(map)
+
+    override fun edit() = Editor()
+    override fun getBoolean(k: String?, def: Boolean) = def
+    override fun getInt(k: String?, def: Int) = def
+    override fun getLong(k: String?, def: Long) = def
+    override fun getFloat(k: String?, def: Float) = def
+    override fun getStringSet(k: String?, def: MutableSet<String>?) = def
+    override fun registerOnSharedPreferenceChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+    override fun unregisterOnSharedPreferenceChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
+    private inner class Editor : SharedPreferences.Editor {
+        private val temp = HashMap<String, String?>()
+        override fun putString(k: String?, v: String?) = apply { if (k != null) temp[k] = v }
+        override fun remove(k: String?) = apply { if (k != null) temp[k] = null }
+        override fun clear() = apply { temp.clear() }
+        override fun commit(): Boolean { apply(); return true }
+        override fun apply() { map.putAll(temp); temp.clear() }
+        override fun putBoolean(k: String?, v: Boolean) = this
+        override fun putInt(k: String?, v: Int) = this
+        override fun putLong(k: String?, v: Long) = this
+        override fun putFloat(k: String?, v: Float) = this
+        override fun putStringSet(k: String?, v: MutableSet<String>?) = this
+    }
 }

@@ -1,6 +1,7 @@
 package com.antoninofaro.welcometool.data.repository
 
 import com.antoninofaro.welcometool.data.model.Result
+import com.antoninofaro.welcometool.data.model.log
 import com.antoninofaro.welcometool.data.model.safeApiCall
 import com.antoninofaro.welcometool.data.network.OsmChaService
 import kotlinx.coroutines.flow.first
@@ -14,27 +15,29 @@ class OsmChaRepository @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) {
 
-    suspend fun getUserOsmChaStats(username: String): Pair<Int, Int> {
-        return try {
-            val changesetsLimit = settingsRepository.settingsFlow.first().osmchaChangesetsLimit
-            val response = osmChaService.getUserChangesets(username = username)
-            val reviewed = response.features.filter {
-                it.properties.isChecked || it.properties.harmful != null
-            }.take(changesetsLimit)
-            val likes = reviewed.count { it.properties.isChecked && it.properties.harmful != true }
-            val dislikes = reviewed.count { it.properties.harmful == true }
-            Timber.d("OSMCha %s: likes=%d, dislikes=%d", username, likes, dislikes)
+    suspend fun getUserOsmChaStats(username: String): Result<Pair<Int, Int>> {
+        val result = safeApiCall {
+            val limit = settingsRepository.settingsFlow.first().osmchaChangesetsLimit
+            val pageSize = minOf(limit.coerceIn(1, 500), 200)
+            var page = 1
+            var likes = 0
+            var dislikes = 0
+
+            while (true) {
+                val response = osmChaService.getCheckedChangesets(username, page, pageSize)
+                for (f in response.features) {
+                    if (f.properties.harmful == true) dislikes++ else likes++
+                }
+                if (response.features.size < pageSize) break
+                if (likes + dislikes >= limit) break
+                page++
+            }
             Pair(likes, dislikes)
-        } catch (e: retrofit2.HttpException) {
-            if (e.code() == 401 || e.code() == 403)
-                Timber.e("OSMCha auth error for %s: %d", username, e.code())
-            else
-                Timber.e(e, "OSMCha HTTP %d for %s", e.code(), username)
-            Pair(0, 0)
-        } catch (e: Exception) {
-            Timber.e(e, "OSMCha failed for %s", username)
-            Pair(0, 0)
         }
+        return result.log(
+            errorMsg = "OSMCha request failed for $username",
+            successMsg = { "OSMCha $username: ${it.first}L/${it.second}D" }
+        )
     }
 
     suspend fun verifyToken(): Result<String> = safeApiCall {
