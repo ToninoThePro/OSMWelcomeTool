@@ -103,4 +103,14 @@ class UserAnalyzerTest {
 
         assertEquals(false, analysis.isReturning)
     }
+
+    @Test
+    fun `isWelcomed should be respected when passed to analyze`() {
+        val user = createMockUser("2024-01-01T00:00:00Z", 0)
+        val analysis = UserAnalyzer.analyze(user, emptyList(), null, isWelcomed = true)
+        assertEquals(true, analysis.isWelcomed)
+        
+        val analysisNotWelcomed = UserAnalyzer.analyze(user, emptyList(), null, isWelcomed = false)
+        assertEquals(false, analysisNotWelcomed.isWelcomed)
+    }
 }

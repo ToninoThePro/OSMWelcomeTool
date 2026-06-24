@@ -1,6 +1,7 @@
 package com.antoninofaro.welcometool.data.repository
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
@@ -8,6 +9,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.UUID
 
 /**
  * Security tests for SecureTokenStorage
@@ -23,11 +25,14 @@ class SecureTokenStorageTest {
 
     private lateinit var context: Context
     private lateinit var storage: SecureTokenStorage
+    private lateinit var testPrefs: SharedPreferences
 
     @Before
     fun setup() {
         context = ApplicationProvider.getApplicationContext()
+        testPrefs = context.getSharedPreferences("test_${UUID.randomUUID()}", Context.MODE_PRIVATE)
         storage = SecureTokenStorage(context)
+        storage.injectTestPrefs(testPrefs)
         // Clean slate for each test
         storage.clearOsmchaToken()
     }
@@ -112,8 +117,8 @@ class SecureTokenStorageTest {
         val testToken = "persistent-token"
         storage.saveOsmchaToken(testToken)
 
-        // When - create a new instance
-        val newStorage = SecureTokenStorage(context)
+        // When - create a new instance with same backing prefs
+        val newStorage = SecureTokenStorage(context).also { it.injectTestPrefs(testPrefs) }
         val retrieved = newStorage.getOsmchaToken()
 
         // Then

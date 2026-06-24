@@ -1,8 +1,11 @@
 package com.antoninofaro.welcometool.data.repository
 
-import com.google.common.truth.Truth.assertThat
+import com.antoninofaro.welcometool.data.model.Result
+import com.antoninofaro.welcometool.data.network.OsmChaFeature
+import com.antoninofaro.welcometool.data.network.OsmChaProperties
 import com.antoninofaro.welcometool.data.network.OsmChaResponse
 import com.antoninofaro.welcometool.data.network.OsmChaService
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -27,102 +30,55 @@ class OsmChaRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        // Mock the settings flow to return default AppSettings
         `when`(settingsRepository.settingsFlow).thenReturn(flowOf(AppSettings()))
         repository = OsmChaRepository(osmChaService, settingsRepository)
     }
 
     @Test
     fun `getUserOsmChaStats returns correct counts for Antonino_Faro`() = runTest {
-        // Given
         val username = "Antonino_Faro"
-        val mockToken = "mock_token"
-        `when`(settingsRepository.getOsmchaTokenOnce()).thenReturn(mockToken)
+        `when`(settingsRepository.getOsmchaTokenOnce()).thenReturn("mock_token")
 
-        // Mock response with mixed features
         val mockFeatures = listOf(
-            com.antoninofaro.welcometool.data.network.OsmChaFeature(
-                properties = com.antoninofaro.welcometool.data.network.OsmChaProperties(
-                    checkUser = "user1",
-                    isChecked = true,
-                    harmful = false  // Like
-                )
-            ),
-            com.antoninofaro.welcometool.data.network.OsmChaFeature(
-                properties = com.antoninofaro.welcometool.data.network.OsmChaProperties(
-                    checkUser = "user2",
-                    isChecked = true,
-                    harmful = false  // Like
-                )
-            ),
-            com.antoninofaro.welcometool.data.network.OsmChaFeature(
-                properties = com.antoninofaro.welcometool.data.network.OsmChaProperties(
-                    checkUser = "user3",
-                    isChecked = false,
-                    harmful = true  // Dislike
-                )
-            ),
-            com.antoninofaro.welcometool.data.network.OsmChaFeature(
-                properties = com.antoninofaro.welcometool.data.network.OsmChaProperties(
-                    checkUser = "user4",
-                    isChecked = true,
-                    harmful = true  // Dislike
-                )
-            ),
-            com.antoninofaro.welcometool.data.network.OsmChaFeature(
-                properties = com.antoninofaro.welcometool.data.network.OsmChaProperties(
-                    checkUser = null,
-                    isChecked = false,
-                    harmful = null  // Unchecked/Unknown
-                )
-            )
+            OsmChaFeature(OsmChaProperties(checkUser = "user1", isChecked = true, harmful = false)),
+            OsmChaFeature(OsmChaProperties(checkUser = "user2", isChecked = true, harmful = false)),
+            OsmChaFeature(OsmChaProperties(checkUser = "user3", isChecked = false, harmful = true)),
+            OsmChaFeature(OsmChaProperties(checkUser = "user4", isChecked = true, harmful = true)),
+            OsmChaFeature(OsmChaProperties(checkUser = null, isChecked = false, harmful = null)),
         )
         val response = OsmChaResponse(count = 5, features = mockFeatures)
-        `when`(osmChaService.getUserChangesets(username)).thenReturn(response)
+        `when`(osmChaService.getCheckedChangesets(username, 1, 100)).thenReturn(response)
 
-        // When
         val result = repository.getUserOsmChaStats(username)
 
-        // Then
-        assertThat(result.first).isEqualTo(2)  // Likes: features with isChecked=true and harmful=false
-        assertThat(result.second).isEqualTo(2) // Dislikes: features with harmful=true
+        assertThat(result.isSuccess).isTrue()
+        val (likes, dislikes) = result.getOrNull()!!
+        assertThat(likes).isEqualTo(3)
+        assertThat(dislikes).isEqualTo(2)
     }
 
     @Test
     fun `getUserOsmChaStats handles 401 error gracefully`() = runTest {
-        // Given
         val username = "Antonino_Faro"
-        val mockToken = "invalid_token"
-        `when`(settingsRepository.getOsmchaTokenOnce()).thenReturn(mockToken)
+        `when`(settingsRepository.getOsmchaTokenOnce()).thenReturn("invalid_token")
 
-        // Simulate 401 error
         val errorResponse = Response.error<OsmChaResponse>(401, "".toResponseBody())
-        val exception = HttpException(errorResponse)
-        `when`(osmChaService.getUserChangesets(username)).thenThrow(exception)
+        `when`(osmChaService.getCheckedChangesets(username, 1, 100)).thenThrow(HttpException(errorResponse))
 
-        // When
         val result = repository.getUserOsmChaStats(username)
 
-        // Then
-        assertThat(result.first).isEqualTo(0)
-        assertThat(result.second).isEqualTo(0)
+        assertThat(result.isError).isTrue()
     }
 
     @Test
     fun `getUserOsmChaStats handles generic exception gracefully`() = runTest {
-        // Given
         val username = "Antonino_Faro"
-        val mockToken = "mock_token"
-        `when`(settingsRepository.getOsmchaTokenOnce()).thenReturn(mockToken)
+        `when`(settingsRepository.getOsmchaTokenOnce()).thenReturn("mock_token")
 
-        // Simulate network error
-        `when`(osmChaService.getUserChangesets(username)).thenThrow(RuntimeException("Network error"))
+        `when`(osmChaService.getCheckedChangesets(username, 1, 100)).thenThrow(RuntimeException("Network error"))
 
-        // When
         val result = repository.getUserOsmChaStats(username)
 
-        // Then
-        assertThat(result.first).isEqualTo(0)
-        assertThat(result.second).isEqualTo(0)
+        assertThat(result.isError).isTrue()
     }
 }
