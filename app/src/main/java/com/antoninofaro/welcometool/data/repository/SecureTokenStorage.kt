@@ -4,14 +4,14 @@ package com.antoninofaro.welcometool.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
-import androidx.core.content.edit
-import java.util.concurrent.ConcurrentHashMap
 
 @Singleton
 class SecureTokenStorage @Inject constructor(
@@ -39,7 +39,10 @@ class SecureTokenStorage @Inject constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            Timber.e(e, "EncryptedSharedPreferences failed, using in-memory store")
+            Timber.e(
+                e,
+                "EncryptedSharedPreferences critical failure! Falling back to volatile in-memory store. Tokens will not persist across app restarts."
+            )
             inMemoryPrefs
         }
     }
@@ -88,8 +91,14 @@ private val inMemoryPrefs = object : SharedPreferences {
         override fun putString(k: String?, v: String?) = apply { if (k != null) temp[k] = v }
         override fun remove(k: String?) = apply { if (k != null) temp[k] = null }
         override fun clear() = apply { temp.clear() }
-        override fun commit(): Boolean { apply(); return true }
-        override fun apply() { map.putAll(temp); temp.clear() }
+        override fun commit(): Boolean {
+            apply(); return true
+        }
+
+        override fun apply() {
+            map.putAll(temp); temp.clear()
+        }
+
         override fun putBoolean(k: String?, v: Boolean) = this
         override fun putInt(k: String?, v: Int) = this
         override fun putLong(k: String?, v: Long) = this

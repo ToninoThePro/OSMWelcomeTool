@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,12 +33,14 @@ data class AppSettings(
     val minChangesetsFilter: Int = 0,
     val cacheEnabled: Boolean = true,
     val osmchaToken: String = "",
+    val verifiedOsmchaUsername: String = "",
     val osmchaChangesetsLimit: Int = 100,
     val lastKnownChangesetId: Long = 0L,
     val lastKnownChangesetDate: String = "",
     val osmchaAutoRefreshDays: Int = 1,
     val monitoringAreas: List<MonitoringArea> = defaultMonitoringAreas(),
     val isOnboardingCompleted: Boolean = false,
+    val isLoaded: Boolean = false,
 )
 
 @Serializable
@@ -69,9 +70,12 @@ class SettingsRepository @Inject constructor(
         private val DEFAULT_BBOX = stringPreferencesKey("default_bbox")
         private val DEFAULT_AREA_NAME = stringPreferencesKey("default_area_name")
         private val SHOW_NOTIFICATIONS = booleanPreferencesKey("show_notifications")
-        private val SHOW_NEW_CHANGESET_NOTIFICATIONS = booleanPreferencesKey("show_new_changeset_notifications")
+        private val SHOW_NEW_CHANGESET_NOTIFICATIONS =
+            booleanPreferencesKey("show_new_changeset_notifications")
         private val MIN_CHANGESETS_FILTER = intPreferencesKey("min_changesets_filter")
         private val CACHE_ENABLED = booleanPreferencesKey("cache_enabled")
+
+        private val VERIFIED_OSMCHA_USERNAME = stringPreferencesKey("verified_osmcha_username")
 
         private val OSMCHA_CHANGESETS_LIMIT = intPreferencesKey("osmcha_changesets_limit")
         private val LAST_KNOWN_CHANGESET_ID = longPreferencesKey("last_known_changeset_id")
@@ -94,19 +98,22 @@ class SettingsRepository @Inject constructor(
             minChangesetsFilter = preferences[MIN_CHANGESETS_FILTER] ?: 0,
             cacheEnabled = preferences[CACHE_ENABLED] ?: true,
             osmchaToken = cachedOsmchaToken,
+            verifiedOsmchaUsername = preferences[VERIFIED_OSMCHA_USERNAME] ?: "",
             osmchaChangesetsLimit = preferences[OSMCHA_CHANGESETS_LIMIT] ?: 100,
             lastKnownChangesetId = preferences[LAST_KNOWN_CHANGESET_ID] ?: 0L,
             lastKnownChangesetDate = preferences[LAST_KNOWN_CHANGESET_DATE] ?: "",
             osmchaAutoRefreshDays = preferences[OSMCHA_AUTO_REFRESH_DAYS] ?: 1,
             monitoringAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON]),
             isOnboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
+            isLoaded = true,
         )
     }
 
     private fun decodeMonitoringAreas(serialized: String?): List<MonitoringArea> {
         if (serialized.isNullOrBlank()) return defaultMonitoringAreas()
         return try {
-            json.decodeFromString<List<MonitoringArea>>(serialized).ifEmpty { defaultMonitoringAreas() }
+            json.decodeFromString<List<MonitoringArea>>(serialized)
+                .ifEmpty { defaultMonitoringAreas() }
         } catch (e: Exception) {
             Timber.w(e, "Invalid monitoring areas payload, using defaults")
             defaultMonitoringAreas()
@@ -127,7 +134,8 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateAutoRefresh(enabled: Boolean) = updatePreference(AUTO_REFRESH, enabled)
 
-    suspend fun updateAutoRefreshInterval(minutes: Int) = updatePreference(AUTO_REFRESH_INTERVAL, minutes)
+    suspend fun updateAutoRefreshInterval(minutes: Int) =
+        updatePreference(AUTO_REFRESH_INTERVAL, minutes)
 
     suspend fun addMonitoringArea(area: MonitoringArea) {
         dataStore.edit { preferences ->
@@ -165,9 +173,11 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun updateShowNotifications(enabled: Boolean) = updatePreference(SHOW_NOTIFICATIONS, enabled)
+    suspend fun updateShowNotifications(enabled: Boolean) =
+        updatePreference(SHOW_NOTIFICATIONS, enabled)
 
-    suspend fun updateShowNewChangesetNotifications(enabled: Boolean) = updatePreference(SHOW_NEW_CHANGESET_NOTIFICATIONS, enabled)
+    suspend fun updateShowNewChangesetNotifications(enabled: Boolean) =
+        updatePreference(SHOW_NEW_CHANGESET_NOTIFICATIONS, enabled)
 
     suspend fun updateMinChangesetsFilter(min: Int) = updatePreference(MIN_CHANGESETS_FILTER, min)
 
@@ -181,22 +191,36 @@ class SettingsRepository @Inject constructor(
 
     fun getOsmchaTokenOnce(): String = secureTokenStorage.getOsmchaToken()
 
-    suspend fun updateOsmchaChangesetsLimit(limit: Int) = updatePreference(OSMCHA_CHANGESETS_LIMIT, limit)
+    suspend fun updateVerifiedOsmchaUsername(username: String) =
+        updatePreference(VERIFIED_OSMCHA_USERNAME, username)
+
+    suspend fun clearVerifiedOsmchaUsername() = updatePreference(VERIFIED_OSMCHA_USERNAME, "")
+
+    suspend fun clearOsmchaToken() {
+        secureTokenStorage.clearOsmchaToken()
+        cachedOsmchaToken = ""
+        updatePreference(VERIFIED_OSMCHA_USERNAME, "")
+    }
+
+    suspend fun updateOsmchaChangesetsLimit(limit: Int) =
+        updatePreference(OSMCHA_CHANGESETS_LIMIT, limit)
 
     suspend fun updateLastKnownChangesetId(id: Long) = updatePreference(LAST_KNOWN_CHANGESET_ID, id)
 
-    suspend fun updateLastKnownChangesetDate(date: String) = updatePreference(LAST_KNOWN_CHANGESET_DATE, date)
+    suspend fun updateLastKnownChangesetDate(date: String) =
+        updatePreference(LAST_KNOWN_CHANGESET_DATE, date)
 
-    suspend fun updateOsmchaAutoRefreshDays(days: Int) = updatePreference(OSMCHA_AUTO_REFRESH_DAYS, days)
+    suspend fun updateOsmchaAutoRefreshDays(days: Int) =
+        updatePreference(OSMCHA_AUTO_REFRESH_DAYS, days)
 
-    suspend fun updateOnboardingCompleted(completed: Boolean) = updatePreference(ONBOARDING_COMPLETED, completed)
+    suspend fun updateOnboardingCompleted(completed: Boolean) =
+        updatePreference(ONBOARDING_COMPLETED, completed)
 
     suspend fun resetToDefaults() {
         dataStore.edit { preferences ->
             preferences.clear()
         }
-        secureTokenStorage.clearOsmchaToken()
-        cachedOsmchaToken = ""
+        clearOsmchaToken()
     }
 }
 

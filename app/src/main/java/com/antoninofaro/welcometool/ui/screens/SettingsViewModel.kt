@@ -3,6 +3,7 @@ package com.antoninofaro.welcometool.ui.screens
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.antoninofaro.welcometool.BuildConfig
 import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.AppSettings
@@ -11,13 +12,15 @@ import com.antoninofaro.welcometool.data.repository.NominatimRepository
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmChaRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
+import com.antoninofaro.welcometool.data.repository.VerifyTokenResult
 import com.antoninofaro.welcometool.utils.NotificationHelper
-import com.antoninofaro.welcometool.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,7 +51,8 @@ class SettingsViewModel @Inject constructor(
     private val _areaSearchError = MutableStateFlow<String?>(null)
     val areaSearchError: StateFlow<String?> = _areaSearchError.asStateFlow()
 
-    private val _tokenVerification = MutableStateFlow<TokenVerificationState>(TokenVerificationState.Idle)
+    private val _tokenVerification =
+        MutableStateFlow<TokenVerificationState>(TokenVerificationState.Idle)
     val tokenVerification: StateFlow<TokenVerificationState> = _tokenVerification.asStateFlow()
 
     val settings: StateFlow<AppSettings> = settingsRepository.settingsFlow
@@ -57,6 +61,17 @@ class SettingsViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = AppSettings()
         )
+
+    private var verifyJob: Job? = null
+
+    init {
+        verifyJob = viewModelScope.launch {
+            val s = settingsRepository.settingsFlow.first()
+            if (s.osmchaToken.isNotBlank() && s.verifiedOsmchaUsername.isBlank()) {
+                verifyWithState(showSnackbarOnInvalid = false)
+            }
+        }
+    }
 
     fun updateThemeMode(mode: String) {
         viewModelScope.launch {
@@ -88,6 +103,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    suspend fun completeOnboarding(area: MonitoringArea) {
+        settingsRepository.setDefaultMonitoringArea(area)
+        settingsRepository.updateOnboardingCompleted(true)
+    }
+
     fun searchAreas(query: String) {
         viewModelScope.launch {
             _isSearchingAreas.value = true
@@ -97,7 +117,8 @@ class SettingsViewModel @Inject constructor(
                 is Result.Success -> _nominatimResults.value = result.data
                 is Result.Error -> {
                     _nominatimResults.value = emptyList()
-                    _areaSearchError.value = result.message ?: application.getString(R.string.error_area_search)
+                    _areaSearchError.value =
+                        result.message ?: application.getString(R.string.error_area_search)
                 }
 
             }
@@ -161,20 +182,55 @@ class SettingsViewModel @Inject constructor(
 
 
     fun updateOsmchaToken(token: String) {
-        viewModelScope.launch {
+        verifyJob?.cancel()
+        verifyJob = viewModelScope.launch {
             settingsRepository.updateOsmchaToken(token)
             if (token.isBlank()) {
                 _tokenVerification.value = TokenVerificationState.Idle
                 return@launch
             }
-            _tokenVerification.value = TokenVerificationState.Verifying
-            _tokenVerification.value = when (val result = osmChaRepository.verifyToken()) {
-                is Result.Success -> TokenVerificationState.Success(result.data)
-                is Result.Error -> TokenVerificationState.Error(
-                    result.message ?: application.getString(R.string.token_verify_error)
-                )
+            verifyWithState(showSnackbarOnInvalid = true)
+        }
+    }
 
+    fun reverifyOsmchaToken(silent: Boolean = false) {
+        verifyJob?.cancel()
+        verifyJob = viewModelScope.launch {
+            val savedToken = settingsRepository.getOsmchaTokenOnce()
+            if (savedToken.isBlank()) return@launch
+            verifyWithState(showSnackbarOnInvalid = !silent)
+        }
+    }
+
+    private suspend fun verifyWithState(showSnackbarOnInvalid: Boolean) {
+        _tokenVerification.value = TokenVerificationState.Verifying
+        _tokenVerification.value = when (val result = osmChaRepository.verifyTokenDetailed()) {
+            is VerifyTokenResult.Success -> {
+                settingsRepository.updateVerifiedOsmchaUsername(result.username)
+                TokenVerificationState.Success(result.username)
             }
+
+            is VerifyTokenResult.Invalid -> {
+                settingsRepository.clearOsmchaToken()
+                if (showSnackbarOnInvalid) {
+                    TokenVerificationState.Error(result.message)
+                } else {
+                    TokenVerificationState.Idle
+                }
+            }
+
+            is VerifyTokenResult.Error -> {
+                TokenVerificationState.Error(
+                    result.message.ifBlank { application.getString(R.string.token_verify_error) }
+                )
+            }
+        }
+    }
+
+    fun clearOsmchaToken() {
+        viewModelScope.launch {
+            settingsRepository.clearOsmchaToken()
+            _tokenVerification.value = TokenVerificationState.Idle
         }
     }
 

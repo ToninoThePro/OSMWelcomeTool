@@ -5,9 +5,16 @@ import com.antoninofaro.welcometool.data.model.log
 import com.antoninofaro.welcometool.data.model.safeApiCall
 import com.antoninofaro.welcometool.data.network.OsmChaService
 import kotlinx.coroutines.flow.first
-import timber.log.Timber
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+
+sealed class VerifyTokenResult {
+    data class Success(val username: String) : VerifyTokenResult()
+    data class Invalid(val message: String) : VerifyTokenResult()
+    data class Error(val message: String) : VerifyTokenResult()
+}
 
 @Singleton
 class OsmChaRepository @Inject constructor(
@@ -43,5 +50,22 @@ class OsmChaRepository @Inject constructor(
     suspend fun verifyToken(): Result<String> = safeApiCall {
         val response = osmChaService.getCurrentUser()
         response.username
+    }
+
+    suspend fun verifyTokenDetailed(): VerifyTokenResult {
+        return try {
+            val response = osmChaService.getCurrentUser()
+            VerifyTokenResult.Success(response.username)
+        } catch (e: HttpException) {
+            if (e.code() == 401) {
+                VerifyTokenResult.Invalid(e.message() ?: "Token non valido")
+            } else {
+                VerifyTokenResult.Error(e.message() ?: "Errore del server")
+            }
+        } catch (e: IOException) {
+            VerifyTokenResult.Error(e.message ?: "Errore di connessione")
+        } catch (e: Exception) {
+            VerifyTokenResult.Error(e.message ?: "Errore sconosciuto")
+        }
     }
 }

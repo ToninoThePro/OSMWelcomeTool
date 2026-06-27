@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -41,10 +43,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.VpnKey
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -78,16 +80,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -119,9 +117,11 @@ fun SettingsScreen(
             is TokenVerificationState.Success -> {
                 snackbarHostState.showSnackbar(viewModel.getTokenVerifiedMessage(state.username))
             }
+
             is TokenVerificationState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
             }
+
             else -> {}
         }
     }
@@ -148,21 +148,38 @@ private fun SettingsScreenContent(
     val nominatimResults by viewModel.nominatimResults.collectAsState()
     val isSearchingAreas by viewModel.isSearchingAreas.collectAsState()
     val areaSearchError by viewModel.areaSearchError.collectAsState()
-    var expandedSections by remember { mutableStateOf(setOf("appearance", "updates", "areas", "osmcha", "cache_info", "danger")) }
+    val tokenVerification by viewModel.tokenVerification.collectAsState()
+    var expandedSections by remember {
+        mutableStateOf(
+            setOf(
+                "appearance",
+                "updates",
+                "areas",
+                "osmcha",
+                "cache_info",
+                "danger"
+            )
+        )
+    }
     var showClearDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    var showRemoveTokenDialog by remember { mutableStateOf(false) }
     var areaQuery by remember { mutableStateOf("") }
-    var osmchaTokenInput by rememberSaveable { mutableStateOf(settings.osmchaToken) }
-    LaunchedEffect(settings.osmchaToken) { osmchaTokenInput = settings.osmchaToken }
+    var osmchaTokenInput by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(settings.osmchaToken) {
+        if (settings.osmchaToken.isBlank()) osmchaTokenInput = ""
+    }
     var showOsmchaToken by remember { mutableStateOf(false) }
     val normalizedTokenInput = remember(osmchaTokenInput) { normalizeOsmchaToken(osmchaTokenInput) }
     val tokenLength = normalizedTokenInput.length
-    val isTokenLengthValid = normalizedTokenInput.isBlank() || tokenLength == OSMCHA_TOKEN_EXPECTED_LENGTH
+    val isTokenLengthValid =
+        normalizedTokenInput.isBlank() || tokenLength == OSMCHA_TOKEN_EXPECTED_LENGTH
+    val isVerifying = tokenVerification is TokenVerificationState.Verifying
 
-    val tokenStatusText = when {
-        settings.osmchaToken.isNotBlank() -> stringResource(R.string.osmcha_token_saved_status)
-        showDebugTokenStatus -> stringResource(R.string.token_debug_status)
-        else -> stringResource(R.string.osmcha_token_none_status)
+    val hasTokenSaved = settings.osmchaToken.isNotBlank()
+    val hasVerifiedUsername = settings.verifiedOsmchaUsername.isNotBlank()
+    val tokenLast4 = remember(settings.osmchaToken) {
+        if (settings.osmchaToken.length >= 4) settings.osmchaToken.takeLast(4) else ""
     }
 
     if ("debug" !in expandedSections && BuildConfig.DEBUG) {
@@ -174,16 +191,19 @@ private fun SettingsScreenContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         stringResource(R.string.settings_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back_desc)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -217,7 +237,9 @@ private fun SettingsScreenContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     listOf("light", "system", "dark").forEach { mode ->
@@ -225,18 +247,20 @@ private fun SettingsScreenContent(
                             selected = settings.themeMode == mode,
                             onClick = { viewModel.updateThemeMode(mode) },
                             label = {
-                                Text(stringResource(
-                                    when (mode) {
-                                        "light" -> R.string.theme_mode_light
-                                        "dark" -> R.string.theme_mode_dark
-                                        else -> R.string.theme_mode_system
-                                    }
-                                ))
+                                Text(
+                                    stringResource(
+                                        when (mode) {
+                                            "light" -> R.string.theme_mode_light
+                                            "dark" -> R.string.theme_mode_dark
+                                            else -> R.string.theme_mode_system
+                                        }
+                                    )
+                                )
                             }
                         )
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 SettingsToggleItem(
@@ -265,18 +289,28 @@ private fun SettingsScreenContent(
 
                 if (settings.autoRefresh) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    var intervalText by remember(settings.autoRefreshInterval) { mutableStateOf(settings.autoRefreshInterval.toString()) }
+                    var intervalText by remember(settings.autoRefreshInterval) {
+                        mutableStateOf(
+                            settings.autoRefreshInterval.toString()
+                        )
+                    }
                     val interval = intervalText.toIntOrNull()
                     ValidatedSettingsTextField(
                         value = intervalText,
                         onValueChange = { text ->
                             intervalText = text
-                            text.toIntOrNull()?.let { v -> if (v in 15..120) viewModel.updateAutoRefreshInterval(v) }
+                            text.toIntOrNull()
+                                ?.let { v -> if (v in 15..120) viewModel.updateAutoRefreshInterval(v) }
                         },
                         label = { Text(stringResource(R.string.refresh_interval_label)) },
                         isError = interval?.let { it !in 15..120 } ?: (intervalText.isNotEmpty()),
                         supportingText = {
-                            Text(interval?.let { if (it in 15..120) stringResource(R.string.interval_minutes, it) else stringResource(R.string.min_interval_hint) } ?: stringResource(R.string.min_interval_hint))
+                            Text(interval?.let {
+                                if (it in 15..120) stringResource(
+                                    R.string.interval_minutes,
+                                    it
+                                ) else stringResource(R.string.min_interval_hint)
+                            } ?: stringResource(R.string.min_interval_hint))
                         }
                     )
                 }
@@ -338,27 +372,26 @@ private fun SettingsScreenContent(
                     SettingsInfoItem(
                         icon = Icons.Default.BugReport,
                         title = stringResource(R.string.debug_changeset_title),
-                        description = stringResource(R.string.debug_changeset_id, settings.lastKnownChangesetId)
+                        description = stringResource(
+                            R.string.debug_changeset_id,
+                            settings.lastKnownChangesetId
+                        )
                     )
                     Text(
-                        text = stringResource(R.string.debug_changeset_date, settings.lastKnownChangesetDate.ifBlank { "N/A" }),
+                        text = stringResource(
+                            R.string.debug_changeset_date,
+                            settings.lastKnownChangesetDate.ifBlank { "N/A" }),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(start = 56.dp)
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    SettingsInfoItem(
-                        icon = Icons.Default.VpnKey,
-                        title = stringResource(R.string.osmcha_section),
-                        description = stringResource(R.string.debug_token_stored, settings.osmchaToken.take(8).plus("..."))
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     FilledTonalButton(
                         onClick = { viewModel.sendTestNotification() },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Notifications, contentDescription = null)
@@ -394,7 +427,9 @@ private fun SettingsScreenContent(
                 ) {
                     FilledTonalButton(
                         onClick = { viewModel.searchAreas(areaQuery) },
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         enabled = areaQuery.isNotBlank() && !isSearchingAreas,
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -408,7 +443,9 @@ private fun SettingsScreenContent(
                             areaQuery = ""
                             viewModel.clearAreaSearchResults()
                         },
-                        modifier = Modifier.weight(1f).height(48.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(stringResource(R.string.clear_btn))
@@ -417,7 +454,9 @@ private fun SettingsScreenContent(
 
                 if (isSearchingAreas) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
                         horizontalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator()
@@ -489,105 +528,202 @@ private fun SettingsScreenContent(
                 isExpanded = "osmcha" in expandedSections,
                 onToggle = { expandedSections = expandedSections.toggle("osmcha") }
             ) {
-                OutlinedTextField(
-                    value = osmchaTokenInput,
-                    onValueChange = { rawInput ->
-                        osmchaTokenInput = normalizeOsmchaToken(rawInput)
-                    },
-                    label = { Text(stringResource(R.string.osmcha_token_label)) },
-                    placeholder = { Text(stringResource(R.string.osmcha_token_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = normalizedTokenInput.isNotBlank() && !isTokenLengthValid,
-                    visualTransformation = if (showOsmchaToken) VisualTransformation.None else PasswordVisualTransformation(),
-                    shape = RoundedCornerShape(12.dp),
-                    supportingText = {
-                        if (normalizedTokenInput.isBlank()) {
-                            Text(stringResource(R.string.osmcha_expected_length, OSMCHA_TOKEN_EXPECTED_LENGTH))
-                        } else {
-                            val prefix = if (isTokenLengthValid) stringResource(R.string.osmcha_token_length_label) else stringResource(R.string.osmcha_token_invalid_label)
-                            Text(stringResource(R.string.osmcha_token_status_format, prefix, tokenLength, OSMCHA_TOKEN_EXPECTED_LENGTH))
-                        }
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { showOsmchaToken = !showOsmchaToken }) {
-                            val icon = if (showOsmchaToken) Icons.Default.VisibilityOff else Icons.Default.Visibility
-                            val desc = if (showOsmchaToken) stringResource(R.string.hide_token) else stringResource(R.string.show_token)
-                            Icon(icon, contentDescription = desc)
-                        }
-                    }
-                )
-
-                Text(
-                    text = tokenStatusText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FilledTonalButton(
-                        onClick = { viewModel.updateOsmchaToken(normalizedTokenInput) },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        enabled = normalizedTokenInput.isNotBlank() && isTokenLengthValid,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.save_btn))
-                    }
-                    FilledTonalButton(
-                        onClick = {
-                            osmchaTokenInput = ""
-                            viewModel.updateOsmchaToken("")
+                if (!hasTokenSaved) {
+                    OutlinedTextField(
+                        value = osmchaTokenInput,
+                        onValueChange = { rawInput ->
+                            osmchaTokenInput = normalizeOsmchaToken(rawInput)
                         },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        label = { Text(stringResource(R.string.osmcha_token_label)) },
+                        placeholder = { Text(stringResource(R.string.osmcha_token_placeholder)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            autoCorrectEnabled = false
+                        ),
+                        isError = normalizedTokenInput.isNotBlank() && !isTokenLengthValid,
+                        visualTransformation = if (showOsmchaToken) VisualTransformation.None else PasswordVisualTransformation(),
+                        shape = RoundedCornerShape(12.dp),
+                        supportingText = {
+                            if (normalizedTokenInput.isBlank()) {
+                                Text(
+                                    stringResource(
+                                        R.string.osmcha_expected_length,
+                                        OSMCHA_TOKEN_EXPECTED_LENGTH
+                                    )
+                                )
+                            } else {
+                                val prefix =
+                                    if (isTokenLengthValid) stringResource(R.string.osmcha_token_length_label) else stringResource(
+                                        R.string.osmcha_token_invalid_label
+                                    )
+                                Text(
+                                    stringResource(
+                                        R.string.osmcha_token_status_format,
+                                        prefix,
+                                        tokenLength,
+                                        OSMCHA_TOKEN_EXPECTED_LENGTH
+                                    )
+                                )
+                            }
+                        },
+                        trailingIcon = {
+                            IconButton(onClick = { showOsmchaToken = !showOsmchaToken }) {
+                                val icon =
+                                    if (showOsmchaToken) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                                val desc =
+                                    if (showOsmchaToken) stringResource(R.string.hide_token) else stringResource(
+                                        R.string.show_token
+                                    )
+                                Icon(icon, contentDescription = desc)
+                            }
+                        }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.remove_btn))
+                        FilledTonalButton(
+                            onClick = { viewModel.updateOsmchaToken(normalizedTokenInput) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            enabled = normalizedTokenInput.isNotBlank() && isTokenLengthValid,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.save_btn))
+                        }
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        if (hasVerifiedUsername) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Column {
+                                Text(
+                                    stringResource(
+                                        R.string.osmcha_connected_as,
+                                        settings.verifiedOsmchaUsername
+                                    ),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (tokenLast4.isNotBlank()) {
+                                    Text(
+                                        stringResource(R.string.osmcha_token_masked, tokenLast4),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                stringResource(R.string.osmcha_token_saved_unverified),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isVerifying) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                        FilledTonalButton(
+                            onClick = { viewModel.reverifyOsmchaToken() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            enabled = !isVerifying,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.verify_btn))
+                        }
+                        FilledTonalButton(
+                            onClick = { showRemoveTokenDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.remove_btn))
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                var changesetLimitText by remember(settings.osmchaChangesetsLimit) { mutableStateOf(settings.osmchaChangesetsLimit.toString()) }
+                var changesetLimitText by remember(settings.osmchaChangesetsLimit) {
+                    mutableStateOf(
+                        settings.osmchaChangesetsLimit.toString()
+                    )
+                }
                 val changesetLimit = changesetLimitText.toIntOrNull()
                 ValidatedSettingsTextField(
                     value = changesetLimitText,
                     onValueChange = { text ->
                         changesetLimitText = text
-                        text.toIntOrNull()?.let { v -> if (v in 1..500) viewModel.updateOsmchaChangesetsLimit(v) }
+                        text.toIntOrNull()
+                            ?.let { v -> if (v in 1..500) viewModel.updateOsmchaChangesetsLimit(v) }
                     },
                     label = { Text(stringResource(R.string.changesets_to_check)) },
-                    isError = changesetLimit?.let { it !in 1..500 } ?: (changesetLimitText.isNotEmpty()),
+                    isError = changesetLimit?.let { it !in 1..500 }
+                        ?: (changesetLimitText.isNotEmpty()),
                     supportingText = {
-                        Text(changesetLimit?.let { if (it in 1..500) stringResource(R.string.changeset_count, it) else stringResource(R.string.changeset_limit_hint) } ?: stringResource(R.string.changeset_limit_hint))
+                        Text(changesetLimit?.let {
+                            if (it in 1..500) stringResource(
+                                R.string.changeset_count,
+                                it
+                            ) else stringResource(R.string.changeset_limit_hint)
+                        } ?: stringResource(R.string.changeset_limit_hint))
                     }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                var autoRefreshDaysText by remember(settings.osmchaAutoRefreshDays) { mutableStateOf(settings.osmchaAutoRefreshDays.toString()) }
+                var autoRefreshDaysText by remember(settings.osmchaAutoRefreshDays) {
+                    mutableStateOf(
+                        settings.osmchaAutoRefreshDays.toString()
+                    )
+                }
                 val autoRefreshDays = autoRefreshDaysText.toIntOrNull()
                 ValidatedSettingsTextField(
                     value = autoRefreshDaysText,
                     onValueChange = { text ->
                         autoRefreshDaysText = text
-                        text.toIntOrNull()?.let { v -> if (v in 1..30) viewModel.updateOsmchaAutoRefreshDays(v) }
+                        text.toIntOrNull()
+                            ?.let { v -> if (v in 1..30) viewModel.updateOsmchaAutoRefreshDays(v) }
                     },
                     label = { Text(stringResource(R.string.osmcha_auto_refresh_label)) },
-                    isError = autoRefreshDays?.let { it !in 1..30 } ?: (autoRefreshDaysText.isNotEmpty()),
+                    isError = autoRefreshDays?.let { it !in 1..30 }
+                        ?: (autoRefreshDaysText.isNotEmpty()),
                     supportingText = {
                         Text(autoRefreshDays?.let {
-                            if (it in 1..30) stringResource(R.string.osmcha_auto_days, it) else stringResource(R.string.osmcha_range_hint)
+                            if (it in 1..30) stringResource(
+                                R.string.osmcha_auto_days,
+                                it
+                            ) else stringResource(R.string.osmcha_range_hint)
                         } ?: stringResource(R.string.osmcha_range_hint))
                     }
                 )
@@ -630,10 +766,19 @@ private fun SettingsScreenContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.licenses_btn), fontWeight = FontWeight.Medium) },
+                    headlineContent = {
+                        Text(
+                            stringResource(R.string.licenses_btn),
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
                     supportingContent = { Text(stringResource(R.string.licenses_desc)) },
                     leadingContent = {
-                        Icon(Icons.Default.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.Description,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable(onClick = onNavigateToLicenses)
@@ -650,7 +795,9 @@ private fun SettingsScreenContent(
             ) {
                 FilledTonalButton(
                     onClick = { showClearDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
@@ -676,7 +823,9 @@ private fun SettingsScreenContent(
 
                 FilledTonalButton(
                     onClick = { showResetDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
@@ -696,17 +845,30 @@ private fun SettingsScreenContent(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
             title = { Text(stringResource(R.string.clear_dialog_title)) },
             text = { Text(stringResource(R.string.clear_dialog_desc)) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearNotifiedUsers()
                     showClearDialog = false
-                }) { Text(stringResource(R.string.delete_confirm), color = MaterialTheme.colorScheme.error) }
+                }) {
+                    Text(
+                        stringResource(R.string.delete_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) { Text(stringResource(R.string.cancel_btn)) }
+                TextButton(onClick = {
+                    showClearDialog = false
+                }) { Text(stringResource(R.string.cancel_btn)) }
             }
         )
     }
@@ -714,7 +876,13 @@ private fun SettingsScreenContent(
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            icon = {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
             title = { Text(stringResource(R.string.reset_dialog_title)) },
             text = { Text(stringResource(R.string.reset_dialog_desc)) },
             confirmButton = {
@@ -724,11 +892,47 @@ private fun SettingsScreenContent(
                         showResetDialog = false
                     }
                 ) {
-                    Text(stringResource(R.string.reset_confirm), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.reset_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
+                    Text(stringResource(R.string.cancel_btn))
+                }
+            }
+        )
+    }
+
+    if (showRemoveTokenDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoveTokenDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.VpnKey,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text(stringResource(R.string.remove_token_title)) },
+            text = { Text(stringResource(R.string.remove_token_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearOsmchaToken()
+                        showRemoveTokenDialog = false
+                    }
+                ) {
+                    Text(
+                        stringResource(R.string.remove_btn),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveTokenDialog = false }) {
                     Text(stringResource(R.string.cancel_btn))
                 }
             }
@@ -743,13 +947,21 @@ private fun SearchResultAreaItem(
 ) {
     ListItem(
         leadingContent = {
-            Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+            Icon(
+                Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary
+            )
         },
         headlineContent = { Text(area.name, fontWeight = FontWeight.Medium) },
         supportingContent = { Text(area.bbox, style = MaterialTheme.typography.bodySmall) },
         trailingContent = {
             IconButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_area_desc), tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = stringResource(R.string.add_area_desc),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -772,18 +984,30 @@ private fun SavedAreaItem(
                 tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
             )
         },
-        headlineContent = { Text(area.name, fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium) },
+        headlineContent = {
+            Text(
+                area.name,
+                fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
+            )
+        },
         supportingContent = { Text(area.bbox, style = MaterialTheme.typography.bodySmall) },
         trailingContent = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (!isDefault) {
                     TextButton(onClick = onSetDefault) {
-                        Text(stringResource(R.string.set_default), style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            stringResource(R.string.set_default),
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
                 if (canRemove) {
                     IconButton(onClick = onRemove) {
-                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.remove_area_desc), tint = MaterialTheme.colorScheme.error)
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.remove_area_desc),
+                            tint = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
