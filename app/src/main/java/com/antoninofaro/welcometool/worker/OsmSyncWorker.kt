@@ -12,13 +12,13 @@ import com.antoninofaro.welcometool.domain.UserAnalyzer
 import com.antoninofaro.welcometool.utils.NotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 import com.antoninofaro.welcometool.data.model.Result as ApiResult
 
@@ -45,20 +45,35 @@ class OsmSyncWorker @AssistedInject constructor(
 
         return try {
             val settings = settingsRepository.settingsFlow.first()
+            val lastKnownDate = settings.lastKnownChangesetDate
 
             val allChangesets = mutableListOf<OsmChangeset>()
-            val lastKnownDate = settings.lastKnownChangesetDate
             var deepScanCursor: String? = null
+            var windowsFetched = 0
+            var deepScanTriggered = false
+            var lastKnownFound = false
 
-            // Phase 1: initial window
             val timeParam = if (lastKnownDate.isNotBlank()) lastKnownDate else null
             val firstBatch = fetchBatch(timeParam)
-            if (firstBatch == null) return Result.retry()
-            if (firstBatch.isEmpty()) return Result.success()
+            windowsFetched++
+            if (firstBatch == null) {
+                Timber.w(
+                    "Scan metrics: windows=%d changesets=%d deepScan=%s found=%s result=retry(null batch)",
+                    windowsFetched, 0, deepScanTriggered, lastKnownFound
+                )
+                return Result.retry()
+            }
+            if (firstBatch.isEmpty()) {
+                Timber.i(
+                    "Scan metrics: windows=%d changesets=%d deepScan=%s found=%s result=success(empty)",
+                    windowsFetched, 0, deepScanTriggered, lastKnownFound
+                )
+                return Result.success()
+            }
             allChangesets.addAll(firstBatch)
 
-            // Phase 2: deep scan if last-known changeset not in batch
             if (lastKnownDate.isNotBlank() && !batchContainsChangeset(firstBatch, lastKnownDate)) {
+                deepScanTriggered = true
                 Timber.d("Last known changeset not in first batch, deep scanning...")
                 deepScanCursor = computeDeepCursor(firstBatch)
 
@@ -67,27 +82,36 @@ class OsmSyncWorker @AssistedInject constructor(
 
                     val timeRange = "$lastKnownDate,$deepScanCursor"
                     val batch = fetchBatch(timeRange)
+                    windowsFetched++
                     if (batch == null || batch.isEmpty()) break
 
                     allChangesets.addAll(batch)
 
                     if (batchContainsChangeset(batch, lastKnownDate)) {
+                        lastKnownFound = true
                         Timber.d("Found last known changeset at deep scan window ${i + 1}")
                         break
                     }
 
                     deepScanCursor = computeDeepCursor(batch)
                 }
+            } else if (lastKnownDate.isNotBlank()) {
+                lastKnownFound = true
             }
 
             checkNewChangesets(allChangesets, settings)
             checkNewMappers(allChangesets, settings)
 
+            Timber.i(
+                "Scan metrics: windows=%d changesets=%d deepScan=%s found=%s result=success",
+                windowsFetched, allChangesets.size, deepScanTriggered, lastKnownFound
+            )
             Result.success()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Error during OsmSyncWorker execution")
+            Timber.w("Scan metrics: result=retry(exception=%s)", e.javaClass.simpleName)
             Result.retry()
         }
     }
@@ -110,7 +134,10 @@ class OsmSyncWorker @AssistedInject constructor(
         return batch.minByOrNull { it.createdAt }?.createdAt
     }
 
-    private suspend fun checkNewChangesets(changesets: List<OsmChangeset>, settings: com.antoninofaro.welcometool.data.repository.AppSettings) {
+    private suspend fun checkNewChangesets(
+        changesets: List<OsmChangeset>,
+        settings: com.antoninofaro.welcometool.data.repository.AppSettings
+    ) {
         val lastKnownId = settings.lastKnownChangesetId
         val maxId = changesets.maxOfOrNull { it.id } ?: return
 
@@ -131,7 +158,10 @@ class OsmSyncWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun checkNewMappers(changesets: List<OsmChangeset>, settings: com.antoninofaro.welcometool.data.repository.AppSettings) {
+    private suspend fun checkNewMappers(
+        changesets: List<OsmChangeset>,
+        settings: com.antoninofaro.welcometool.data.repository.AppSettings
+    ) {
         if (!settings.showNotifications) {
             Timber.d("Notifications disabled in settings")
             return
@@ -179,7 +209,8 @@ class OsmSyncWorker @AssistedInject constructor(
         }
 
         val recentCs = changesetsByUid[uid]
-        val allChangesets = osmRepository.fetchUserChangesets(uid, CHANGESET_LIMIT).getOrNull().orEmpty()
+        val allChangesets =
+            osmRepository.fetchUserChangesets(uid, CHANGESET_LIMIT).getOrNull().orEmpty()
         val analysis = UserAnalyzer.analyze(user, allChangesets, recentCs)
 
         if (analysis.isNewcomer) {

@@ -35,6 +35,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
 import com.antoninofaro.welcometool.ui.components.fadingEdge
@@ -60,10 +62,11 @@ fun OnboardingScreen(
     val isSearching by viewModel.isSearchingAreas.collectAsState()
     val searchError by viewModel.areaSearchError.collectAsState()
     val settings by viewModel.settings.collectAsState()
-    
+
     var selectedArea by remember { mutableStateOf<MonitoringArea?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -148,7 +151,9 @@ fun OnboardingScreen(
                 text = stringResource(R.string.onboarding_choose_area_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -158,7 +163,7 @@ fun OnboardingScreen(
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(stringResource(R.string.search_area_placeholder)) },
-                leadingIcon = { 
+                leadingIcon = {
                     IconButton(onClick = {
                         if (searchQuery.isNotBlank()) {
                             viewModel.searchAreas(searchQuery)
@@ -166,7 +171,10 @@ fun OnboardingScreen(
                             focusManager.clearFocus()
                         }
                     }) {
-                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_btn))
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = stringResource(R.string.search_btn)
+                        )
                     }
                 },
                 shape = RoundedCornerShape(24.dp),
@@ -191,7 +199,9 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Box(modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()) {
                 if (isSearching) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 } else {
@@ -204,7 +214,9 @@ fun OnboardingScreen(
                         )
                     } else if (searchResults.isNotEmpty()) {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().fadingEdge(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .fadingEdge(),
                             contentPadding = PaddingValues(vertical = 8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -226,18 +238,24 @@ fun OnboardingScreen(
 
             Button(
                 onClick = {
-                    val areaToSet = selectedArea ?: MonitoringArea(Constants.DEFAULT_AREA_NAME, Constants.ITALY_BBOX)
-                    viewModel.setDefaultMonitoringArea(areaToSet)
-                    viewModel.setOnboardingCompleted(true)
-                    onFinish()
+                    val areaToSet = selectedArea ?: MonitoringArea(
+                        Constants.DEFAULT_AREA_NAME,
+                        Constants.ITALY_BBOX
+                    )
+                    scope.launch {
+                        viewModel.completeOnboarding(areaToSet)
+                        onFinish()
+                    }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Text(
-                    if (selectedArea != null) 
-                        stringResource(R.string.onboarding_start_monitoring) 
-                    else 
+                    if (selectedArea != null)
+                        stringResource(R.string.onboarding_start_monitoring)
+                    else
                         stringResource(R.string.onboarding_skip_btn)
                 )
             }
@@ -257,9 +275,9 @@ private fun AreaResultItem(
         onClick = onClick,
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
                 MaterialTheme.colorScheme.surfaceContainerLow
         ),
         modifier = Modifier.fillMaxWidth()
@@ -278,9 +296,9 @@ private fun AreaResultItem(
                 Text(
                     text = area.bbox,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (isSelected) 
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) 
-                    else 
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    else
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
