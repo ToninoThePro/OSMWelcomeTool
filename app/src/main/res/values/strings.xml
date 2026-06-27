@@ -11,7 +11,6 @@
     <string name="back_desc">Indietro</string>
     <string name="cache_desc">Salva dati in cache per velocizzare il caricamento</string>
     <string name="cache_info_section">CACHE E INFORMAZIONI</string>
-    <string name="cache_perf_section">CACHE E PERFORMANCE</string>
     <string name="cache_title">Cache Attiva</string>
     <string name="cancel_btn">Annulla</string>
     <string name="channel_new_mapper_desc">Avvisa se ci sono stati rilevati nuovi utenti</string>
@@ -31,37 +30,30 @@
     <string name="debug_changeset_title">Changeset Debug</string>
     <string name="debug_changeset_id">Ultimo Changeset ID: %d</string>
     <string name="debug_changeset_date">Ultima Data: %s</string>
-    <string name="debug_token_stored">Token memorizzato: %s</string>
     <string name="theme_mode_title">Tema</string>
     <string name="theme_mode_system">Sistema</string>
     <string name="theme_mode_light">Chiaro</string>
     <string name="theme_mode_dark">Scuro</string>
     <string name="dynamic_color_title">Colori dinamici</string>
     <string name="dynamic_color_desc">Usa i colori dinamici di Android 12+</string>
-    <string name="data_update_section">AGGIORNAMENTO DATI</string>
     <string name="updates_notifications_section">AGGIORNAMENTI E NOTIFICHE</string>
     <string name="date_format_pattern">dd/MM/yyyy</string>
     <string name="default_area">Area Predefinita</string>
-    <string name="default_filters_section">FILTRI PREDEFINITI</string>
     <string name="delete_confirm">Cancella</string>
     <string name="edits_label">Edits: %d</string>
     <string name="edits_icon_desc">Modifiche</string>
     <string name="empty_users_msg">Nessun utente caricato. Trascina verso il basso per cercare altri mappatori.</string>
     <string name="end_of_list">fine della lista</string>
-    <string name="enter_number">Inserisci un numero</string>
     <string name="enter_valid_username">Inserisci un nome utente valido</string>
     <string name="error_prefix">Errore: %s</string>
     <string name="error_search_format">Errore durante la ricerca: %s</string>
     <string name="error_loading_format">Errore durante il caricamento: %s</string>
-    <string name="error_changeset_load">Errore nel caricamento dei changeset: %s</string>
     <string name="error_area_search">Errore ricerca aree</string>
     <string name="external_link_desc">Link esterno</string>
     <string name="external_tools_section">STRUMENTI ESTERNI</string>
     <string name="hide_token">Nascondi token</string>
     <string name="hdyc_stats">HDYC Stats</string>
-    <string name="info_section">INFORMAZIONI</string>
     <string name="interval_minutes">%d minuti</string>
-    <string name="invalid_value">Valore non valido</string>
     <string name="last_activity">Ultima Attività</string>
     <string name="last_data_sync">Ultimo aggiornamento dati</string>
     <string name="last_osmcha_check">Ultimo controllo OSMCha</string>
@@ -71,7 +63,6 @@
     <string name="load_more_btn">Carica altri utenti</string>
     <string name="loading_label">Caricamento…</string>
     <string name="mark_welcomed_btn">SEGNA COME BENVENUTO</string>
-    <string name="min_changes_label">Modifiche Minime</string>
     <string name="min_edits_short">Edit min:</string>
     <string name="min_interval_hint">Minimo 15 minuti</string>
     <string name="monitoring_areas_section">AREE DI CONTROLLO</string>
@@ -86,7 +77,6 @@
     <string name="not_now_btn">Non ora</string>
     <string name="notification_rationale_desc">Abilita le notifiche per ricevere avvisi quando qualcuno modifica l\'area monitorata o quando si rileva un nuovo mappatore.</string>
     <string name="notification_rationale_title">Notifiche</string>
-    <string name="notifications_section">NOTIFICHE</string>
     <string name="notif_changeset_big_title">Nuovi changeset (%d)</string>
     <string name="notif_changeset_content_title">Nuovi Mappatori Rilevati</string>
     <string name="notif_changeset_count">%d nuovi changeset da %d utenti</string>
@@ -111,16 +101,19 @@
     <string name="osmcha_no_token">⚠️ Token non configurato (Impostazioni)</string>
     <string name="osmcha_range_hint">Valore 1–30</string>
     <string name="osmcha_rating">👍 %d / 👎 %d</string>
-    <string name="osmcha_refresh_section">AGGIORNAMENTO OSMCHA</string>
     <string name="osmcha_section">OSMCHA</string>
     <string name="osmcha_searching">Ricerca valutazioni…</string>
     <string name="osmcha_summary">OSMCha: 👍 %d / 👎 %d (%s)</string>
     <string name="osmcha_token_invalid_label">Token non valido</string>
     <string name="osmcha_token_label">Token OSMcha</string>
     <string name="osmcha_token_length_label">Lunghezza token</string>
-    <string name="osmcha_token_none_status">Nessun token OSMcha configurato</string>
     <string name="osmcha_token_placeholder">Inserisci token</string>
-    <string name="osmcha_token_saved_status">Token salvato (impostazioni)</string>
+    <string name="osmcha_connected_as">Connesso come: %s</string>
+    <string name="osmcha_token_masked">Token: ••••%s</string>
+    <string name="osmcha_token_saved_unverified">Token salvato (non verificato)</string>
+    <string name="verify_btn">Verifica</string>
+    <string name="remove_token_title">Rimuovi token OSMCha</string>
+    <string name="remove_token_confirm">Sei sicuro di voler rimuovere il token OSMCha?</string>
     <string name="osmcha_token_status_format">%s: %d/%d</string>
     <string name="osmcha_updating">👍 %d / 👎 %d (aggiornamento…)</string>
     <string name="osm_profile">Profilo OSM</string>
@@ -152,7 +145,6 @@
     <string name="set_default">Imposta</string>
     <string name="settings">Impostazioni</string>
     <string name="settings_title">Impostazioni</string>
-    <string name="show_min_edits">Mostra utenti con almeno %d modifiche</string>
     <string name="show_token">Mostra token</string>
     <string name="status_newcomer">Novizio</string>
     <string name="status_power_user">Pro</string>
@@ -160,7 +152,6 @@
     <string name="time_hours_ago">%dh fa</string>
     <string name="time_minutes_ago">%dm fa</string>
     <string name="time_now">ora</string>
-    <string name="token_debug_status">Token debug attivo (BuildConfig)</string>
     <string name="token_verify_error">Token non valido o errore di connessione</string>
     <string name="token_verified_snackbar">Fatto, sei connesso come: %s</string>
     <string name="total_edits">Totale Modifiche</string>
@@ -171,7 +162,6 @@
     <string name="welcomed_chip">Benvenuto</string>
     <string name="show_more">Mostra altro</string>
     <string name="show_less">Mostra meno</string>
-    <string name="stale_data_banner">Dati non aggiornati. Ultimo aggiornamento: %s</string>
     <string name="offline_banner">Sei offline. I dati potrebbero non essere aggiornati.</string>
     <string name="data_freshness_label">Aggiornato: %s</string>
 
@@ -184,5 +174,4 @@
     <string name="onboarding_start_monitoring">Avvia monitoraggio</string>
     <string name="onboarding_notifications_title">Notifiche</string>
     <string name="onboarding_notifications_desc">Ricevi avvisi per nuovi mappatori nella zona</string>
-    <string name="onboarding_finish_btn">Inizia</string>
 </resources>
