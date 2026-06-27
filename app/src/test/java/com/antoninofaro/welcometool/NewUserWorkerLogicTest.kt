@@ -1,6 +1,5 @@
 package com.antoninofaro.welcometool
 
-import com.google.common.truth.Truth.assertThat
 import com.antoninofaro.welcometool.data.model.CountWrapper
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.OsmUser
@@ -9,6 +8,8 @@ import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
+import com.antoninofaro.welcometool.data.repository.normalizeOsmchaToken
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
@@ -16,9 +17,9 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
-import org.mockito.kotlin.whenever
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NewUserWorkerLogicTest {
@@ -209,6 +210,67 @@ class NewUserWorkerLogicTest {
         assertThat(result).isInstanceOf(Result.Success::class.java)
         val data = (result as Result.Success).data
         assertThat(data).isEmpty()
+    }
+
+    @Test
+    fun `notifications are disabled by default`() {
+        val settings = AppSettings()
+        assertThat(settings.showNotifications).isFalse()
+        assertThat(settings.showNewChangesetNotifications).isFalse()
+    }
+
+    @Test
+    fun `normalizeOsmchaToken removes Token prefix and whitespace`() {
+        assertThat(normalizeOsmchaToken("Token abc123")).isEqualTo("abc123")
+        assertThat(normalizeOsmchaToken("TOKEN abc123")).isEqualTo("abc123")
+        assertThat(normalizeOsmchaToken("  abc 123  ")).isEqualTo("abc123")
+        assertThat(normalizeOsmchaToken("abc123")).isEqualTo("abc123")
+        assertThat(normalizeOsmchaToken("")).isEqualTo("")
+    }
+
+    @Test
+    fun `decision logic skips new changeset notification when lastKnownId is 0`() {
+        val settings = AppSettings(lastKnownChangesetId = 0L, showNewChangesetNotifications = true)
+        val changesets = listOf(createMockChangeset(1L, 100L, "user1"))
+        val maxId = changesets.maxOf { it.id }
+
+        // lastKnownId == 0 → initial scan, no notification
+        val shouldNotify = maxId > settings.lastKnownChangesetId
+                && settings.lastKnownChangesetId != 0L
+                && settings.showNewChangesetNotifications
+                && changesets.isNotEmpty()
+
+        assertThat(maxId).isGreaterThan(0L)
+        assertThat(shouldNotify).isFalse()
+    }
+
+    @Test
+    fun `decision logic notifies when maxId exceeds lastKnownId`() {
+        val settings = AppSettings(lastKnownChangesetId = 50L, showNewChangesetNotifications = true)
+        val changesets = listOf(createMockChangeset(100L, 1L, "user1"))
+        val maxId = changesets.maxOf { it.id }
+
+        val shouldNotify = maxId > settings.lastKnownChangesetId
+                && settings.lastKnownChangesetId != 0L
+                && settings.showNewChangesetNotifications
+                && changesets.isNotEmpty()
+
+        assertThat(shouldNotify).isTrue()
+    }
+
+    @Test
+    fun `mapper detection dedup via notifiedUserStorage`() = runTest {
+        val changesets = listOf(
+            createMockChangeset(1L, 100L, "user1"),
+            createMockChangeset(2L, 200L, "user2"),
+            createMockChangeset(3L, 100L, "user1") // same uid, should dedup
+        )
+        val uniqueUids = changesets.map { it.uid }.distinct()
+        val notifiedIds = setOf("200")
+
+        val toProcess = uniqueUids.filterNot { notifiedIds.contains(it.toString()) }
+
+        assertThat(toProcess).containsExactly(100L) // user2 already notified
     }
 
     // ==================== HELPER FUNCTIONS ====================

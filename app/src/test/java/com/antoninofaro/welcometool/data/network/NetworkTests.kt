@@ -1,20 +1,16 @@
 package com.antoninofaro.welcometool.data.network
 
-import com.antoninofaro.welcometool.data.model.OsmUser
-import com.antoninofaro.welcometool.data.model.OsmUserWrapper
-import com.antoninofaro.welcometool.data.model.UserImage
-import com.antoninofaro.welcometool.data.model.CountWrapper
 import com.google.common.truth.Truth.assertThat
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 
 class NetworkTests {
 
@@ -50,13 +46,14 @@ class NetworkTests {
     @Test
     fun `User-Agent header is correctly added`() {
         mockWebServer.enqueue(MockResponse().setBody("{}").setResponseCode(200))
-        
+
         // Use a call that doesn't strictly need a valid JSON for just checking headers
         try {
-             kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.runBlocking {
                 apiService.getUserDetail(123)
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+        }
 
         val request = mockWebServer.takeRequest()
         assertThat(request.getHeader("User-Agent")).contains("OSMWelcomeTool")

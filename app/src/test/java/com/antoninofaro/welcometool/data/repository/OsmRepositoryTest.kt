@@ -1,6 +1,5 @@
 package com.antoninofaro.welcometool.data.repository
 
-import com.google.common.truth.Truth.assertThat
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.OsmChangesetWrapper
 import com.antoninofaro.welcometool.data.model.OsmUser
@@ -8,6 +7,7 @@ import com.antoninofaro.welcometool.data.model.OsmUserWrapper
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.network.OsmApiService
 import com.antoninofaro.welcometool.utils.Constants
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
