@@ -5,6 +5,7 @@ import com.antoninofaro.welcometool.data.network.NominatimApiService
 import com.antoninofaro.welcometool.data.network.OsmApiService
 import com.antoninofaro.welcometool.data.network.OsmChaService
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
+import com.antoninofaro.welcometool.utils.TokenMasker
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
@@ -58,14 +59,27 @@ object NetworkModule {
             .addInterceptor(RateLimitInterceptor())
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .header("User-Agent", "OSMWelcomeTool/${BuildConfig.VERSION_NAME} (Contact: farotonino@gmail.com)")
+                    .header(
+                        "User-Agent",
+                        "OSMWelcomeTool/${BuildConfig.VERSION_NAME} (Contact: farotonino@gmail.com)"
+                    )
                     .build()
                 chain.proceed(request)
             }
 
         if (BuildConfig.DEBUG) {
             val loggingInterceptor = HttpLoggingInterceptor { message ->
-                Timber.tag("OkHttp").v(message)
+                // Basic redaction for the log message itself if it contains headers
+                val maskedMessage =
+                    if (message.contains("Authorization: Token ", ignoreCase = true)) {
+                        val parts = message.split("Authorization: Token ")
+                        if (parts.size == 2) {
+                            val token = parts[1].trim()
+                            "${parts[0]}Authorization: Token ${TokenMasker.mask(token)}"
+                        } else message
+                    } else message
+
+                Timber.tag("OkHttp").v(maskedMessage)
             }.apply {
                 level = HttpLoggingInterceptor.Level.HEADERS
             }
@@ -82,27 +96,7 @@ object NetworkModule {
         @BaseClient baseClient: OkHttpClient
     ): OkHttpClient {
         return baseClient.newBuilder()
-            .addNetworkInterceptor { chain ->
-                val request = chain.request()
-                val response = chain.proceed(request)
-                
-                // Smart Caching Strategy
-                val url = request.url.toString()
-                val cacheControl = when {
-                    url.contains("/api/0.6/user/") -> "public, max-age=86400" // User profile: 24h
-                    url.contains("/api/0.6/changesets.json") -> "public, max-age=300" // Changesets: 5m
-                    else -> null
-                }
-
-                if (cacheControl != null) {
-                    response.newBuilder()
-                        .header("Cache-Control", cacheControl)
-                        .removeHeader("Pragma")
-                        .build()
-                } else {
-                    response
-                }
-            }
+            .addNetworkInterceptor(OsmCacheControlInterceptor())
             .build()
     }
 
@@ -144,14 +138,6 @@ object NetworkModule {
                     .header("Authorization", "Token $token")
                     .build()
                 chain.proceed(authed)
-            }
-            .addNetworkInterceptor { chain ->
-                // Cache OSMCha stats for 1 hour
-                val response = chain.proceed(chain.request())
-                response.newBuilder()
-                    .header("Cache-Control", "public, max-age=3600")
-                    .removeHeader("Pragma")
-                    .build()
             }
             .build()
     }
