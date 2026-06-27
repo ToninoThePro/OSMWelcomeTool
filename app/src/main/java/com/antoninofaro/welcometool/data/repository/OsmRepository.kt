@@ -37,7 +37,10 @@ class OsmRepository @Inject constructor(
             response.changesets
         }.also { result ->
             if (result.isError) {
-                Timber.e(result.exceptionOrNull(), "Error fetching recent changesets for bbox: $bbox")
+                Timber.e(
+                    result.exceptionOrNull(),
+                    "Error fetching recent changesets for bbox: $bbox"
+                )
             } else {
                 Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets")
             }
@@ -70,7 +73,6 @@ class OsmRepository @Inject constructor(
             }
         }
     }
-
 
 
     suspend fun fetchUserChangesets(userId: Long, limit: Int = 100): Result<List<OsmChangeset>> {

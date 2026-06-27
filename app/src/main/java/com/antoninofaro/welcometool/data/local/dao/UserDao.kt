@@ -4,8 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.antoninofaro.welcometool.data.entity.UserEntity
 import com.antoninofaro.welcometool.data.entity.UserAreaActivityEntity
+import com.antoninofaro.welcometool.data.entity.UserEntity
 import com.antoninofaro.welcometool.data.local.model.UserAreaActivityWithUser
 
 @Dao

@@ -1,11 +1,10 @@
 package com.antoninofaro.welcometool.domain
 
+import androidx.compose.runtime.Immutable
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.OsmUser
-import java.time.Instant
-import java.time.format.DateTimeFormatter
-import androidx.compose.runtime.Immutable
 import timber.log.Timber
+import java.time.Instant
 
 @Immutable
 data class UserAnalysis(

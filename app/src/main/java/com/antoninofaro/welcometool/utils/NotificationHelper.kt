@@ -11,8 +11,8 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.MainActivity
+import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
@@ -39,7 +39,11 @@ class NotificationHelper @Inject constructor(
             // Main updates channel
             val name = context.getString(R.string.channel_updates_name)
             val descriptionText = context.getString(R.string.channel_updates_desc)
-            val channel = NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT).apply {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                name,
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
                 description = descriptionText
             }
             notificationManager.createNotificationChannel(channel)
@@ -47,7 +51,11 @@ class NotificationHelper @Inject constructor(
             // New mappers channel
             val mapperName = context.getString(R.string.channel_new_mapper_name)
             val mapperDesc = context.getString(R.string.channel_new_mapper_desc)
-            val mapperChannel = NotificationChannel(NEW_MAPPER_CHANNEL, mapperName, NotificationManager.IMPORTANCE_DEFAULT).apply {
+            val mapperChannel = NotificationChannel(
+                NEW_MAPPER_CHANNEL,
+                mapperName,
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
                 description = mapperDesc
             }
             notificationManager.createNotificationChannel(mapperChannel)
@@ -93,7 +101,11 @@ class NotificationHelper @Inject constructor(
         val count = newChangesets.size
         val distinctUsers = newChangesets.map { it.user }.distinct()
         val bodyText = if (distinctUsers.size <= 3) {
-            context.getString(R.string.notif_changeset_list, count, distinctUsers.joinToString(", "))
+            context.getString(
+                R.string.notif_changeset_list,
+                count,
+                distinctUsers.joinToString(", ")
+            )
         } else {
             context.getString(R.string.notif_changeset_count, count, distinctUsers.size)
         }
@@ -103,7 +115,8 @@ class NotificationHelper @Inject constructor(
             .setSummaryText(context.getString(R.string.notif_changeset_summary, count))
 
         newChangesets.forEach { cs ->
-            val comment = cs.tags?.get("comment") ?: context.getString(R.string.no_comment_placeholder)
+            val comment =
+                cs.tags?.get("comment") ?: context.getString(R.string.no_comment_placeholder)
             inboxStyle.addLine("${cs.user}: $comment")
         }
 
@@ -154,19 +167,35 @@ class NotificationHelper @Inject constructor(
             val builder = NotificationCompat.Builder(context, NEW_MAPPER_CHANNEL)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(context.getString(R.string.notif_new_mapper_title))
-                .setContentText(context.getString(R.string.notif_new_mapper_text, username, areaName))
+                .setContentText(
+                    context.getString(
+                        R.string.notif_new_mapper_text,
+                        username,
+                        areaName
+                    )
+                )
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
-            NotificationManagerCompat.from(context).notify(NEW_USER_NOTIFICATION_ID, builder.build())
+            NotificationManagerCompat.from(context)
+                .notify(NEW_USER_NOTIFICATION_ID, builder.build())
         } else {
             val inboxStyle = NotificationCompat.InboxStyle()
-                .setBigContentTitle(context.getString(R.string.notif_new_mappers_plural_title, newcomers.size))
+                .setBigContentTitle(
+                    context.getString(
+                        R.string.notif_new_mappers_plural_title,
+                        newcomers.size
+                    )
+                )
                 .setSummaryText(areaName)
             newcomers.forEach { (username, _) ->
                 inboxStyle.addLine(username)
             }
 
-            val bodyText = context.getString(R.string.notif_new_mappers_plural_text, newcomers.size, usernames.joinToString(", "))
+            val bodyText = context.getString(
+                R.string.notif_new_mappers_plural_text,
+                newcomers.size,
+                usernames.joinToString(", ")
+            )
             val builder = NotificationCompat.Builder(context, NEW_MAPPER_CHANNEL)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(context.getString(R.string.notif_new_mappers_content_title))
@@ -174,7 +203,8 @@ class NotificationHelper @Inject constructor(
                 .setStyle(inboxStyle)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
-            NotificationManagerCompat.from(context).notify(NEW_USER_NOTIFICATION_ID, builder.build())
+            NotificationManagerCompat.from(context)
+                .notify(NEW_USER_NOTIFICATION_ID, builder.build())
         }
     }
 }

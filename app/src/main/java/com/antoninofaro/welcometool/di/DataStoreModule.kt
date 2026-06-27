@@ -12,8 +12,12 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
-@Qualifier @Retention(AnnotationRetention.BINARY) annotation class NotifiedDataStore
-@Qualifier @Retention(AnnotationRetention.BINARY) annotation class WelcomedDataStore
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class NotifiedDataStore
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class WelcomedDataStore
 
 private val Context.notifiedDataStore: DataStore<Preferences> by preferencesDataStore(name = "osm_notified_registry")
 private val Context.welcomedDataStore: DataStore<Preferences> by preferencesDataStore(name = "osm_welcomed_registry")
@@ -22,12 +26,14 @@ private val Context.welcomedDataStore: DataStore<Preferences> by preferencesData
 @InstallIn(SingletonComponent::class)
 object DataStoreModule {
     @NotifiedDataStore
-    @Provides @Singleton
+    @Provides
+    @Singleton
     fun provideNotifiedDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         context.notifiedDataStore
 
     @WelcomedDataStore
-    @Provides @Singleton
+    @Provides
+    @Singleton
     fun provideWelcomedDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
         context.welcomedDataStore
 }

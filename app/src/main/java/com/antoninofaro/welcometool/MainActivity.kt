@@ -20,18 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.antoninofaro.welcometool.ui.screens.MainViewModel
 import com.antoninofaro.welcometool.ui.screens.LicensesScreen
+import com.antoninofaro.welcometool.ui.screens.MainViewModel
 import com.antoninofaro.welcometool.ui.screens.OnboardingScreen
 import com.antoninofaro.welcometool.ui.screens.SettingsScreen
 import com.antoninofaro.welcometool.ui.screens.SettingsViewModel
@@ -75,7 +75,8 @@ class MainActivity : ComponentActivity() {
                     viewModel.updateBBox(settings.defaultBBox)
                 }
 
-                val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+                val permissionLauncher =
+                    rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     var showRationale by remember { mutableStateOf(false) }
                     var permissionRequestAttempted by rememberSaveable { mutableStateOf(false) }
@@ -99,7 +100,11 @@ class MainActivity : ComponentActivity() {
                                 }) { Text(stringResource(R.string.ok_btn)) }
                             },
                             dismissButton = {
-                                TextButton(onClick = { showRationale = false }) { Text(stringResource(R.string.not_now_btn)) }
+                                TextButton(onClick = { showRationale = false }) {
+                                    Text(
+                                        stringResource(R.string.not_now_btn)
+                                    )
+                                }
                             }
                         )
                     }
@@ -109,7 +114,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    if (settings.isLoaded) {
                     AppNavigation(viewModel, settingsViewModel, settings.isOnboardingCompleted)
+                }
                 }
             }
         }

@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Surface
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
@@ -39,7 +38,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +49,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -102,16 +101,19 @@ fun UserDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = stringResource(R.string.user_detail_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back_desc)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -154,7 +156,13 @@ fun UserDetailScreen(
             AssistChip(
                 onClick = {},
                 label = { Text(stringResource(R.string.user_id_chip, user.id)) },
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
                 shape = RoundedCornerShape(12.dp),
                 colors = AssistChipDefaults.assistChipColors(
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -203,13 +211,15 @@ fun UserDetailScreen(
                                 )
                             )
                         }
-                        
+
                         TextButton(
                             onClick = { isBioExpanded = !isBioExpanded },
                             modifier = Modifier.align(Alignment.End)
                         ) {
                             Text(
-                                if (isBioExpanded) stringResource(R.string.show_less) else stringResource(R.string.show_more),
+                                if (isBioExpanded) stringResource(R.string.show_less) else stringResource(
+                                    R.string.show_more
+                                ),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold
                             )
@@ -218,42 +228,45 @@ fun UserDetailScreen(
                 }
             }
 
-    // Offline banner
-    if (!isOnline) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.tertiaryContainer
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Info,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.offline_banner),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                )
+            // Offline banner
+            if (!isOnline) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.offline_banner),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
             }
-        }
-    }
 
-    Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-    // Action Button with dropdown for sending message
+            // Action Button with dropdown for sending message
             var expanded by remember { mutableStateOf(false) }
-            val btnColor = if (analysis.isWelcomed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
+            val btnColor =
+                if (analysis.isWelcomed) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
 
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)) {
                 Button(
                     onClick = onToggleWelcome,
                     modifier = Modifier
@@ -272,7 +285,9 @@ fun UserDetailScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = if (analysis.isWelcomed) stringResource(R.string.already_welcomed_btn) else stringResource(R.string.mark_welcomed_btn),
+                        text = if (analysis.isWelcomed) stringResource(R.string.already_welcomed_btn) else stringResource(
+                            R.string.mark_welcomed_btn
+                        ),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -290,7 +305,10 @@ fun UserDetailScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = btnColor),
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.options_desc))
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = stringResource(R.string.options_desc)
+                            )
                         }
                         DropdownMenu(
                             expanded = expanded,
@@ -317,7 +335,9 @@ fun UserDetailScreen(
                 text = stringResource(R.string.profile_analysis_section).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Black,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
                 color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 1.2.sp
             )
@@ -325,7 +345,9 @@ fun UserDetailScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 StatusCard(
@@ -355,14 +377,21 @@ fun UserDetailScreen(
 
             // Details List
             Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
             ) {
                 Column {
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.registration_date), fontWeight = FontWeight.Medium) },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.registration_date),
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
                         supportingContent = { Text(user.accountCreated.take(10)) },
                         leadingContent = {
                             Icon(
@@ -373,81 +402,180 @@ fun UserDetailScreen(
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(
+                        Modifier.padding(horizontal = 20.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.total_edits), fontWeight = FontWeight.Medium) },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.total_edits),
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
                         supportingContent = { Text(analysis.totalEdits.toString()) },
-                        leadingContent = { 
+                        leadingContent = {
                             Icon(
-                                Icons.Default.Edit, 
+                                Icons.Default.Edit,
                                 contentDescription = stringResource(R.string.edits_icon_desc),
                                 tint = MaterialTheme.colorScheme.primary
-                            ) 
+                            )
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    
+                    HorizontalDivider(
+                        Modifier.padding(horizontal = 20.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+
                     when (osmchaState) {
                         OsmchaState.NoToken -> ListItem(
                             headlineContent = { Text("OSMCHA", fontWeight = FontWeight.Medium) },
                             supportingContent = { Text(stringResource(R.string.osmcha_no_token)) },
-                            leadingContent = { Icon(Icons.Default.ThumbsUpDown, null, tint = MaterialTheme.colorScheme.secondary) },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.ThumbsUpDown,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
+
                         OsmchaState.Loading -> {
                             val isRefresh = osmchaLikes > 0 || osmchaDislikes > 0
                             ListItem(
-                                headlineContent = { Text("OSMCHA", fontWeight = FontWeight.Medium) },
+                                headlineContent = {
+                                    Text(
+                                        "OSMCHA",
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                },
                                 supportingContent = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        CircularProgressIndicator(
+                                            Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
                                         Spacer(Modifier.width(8.dp))
                                         if (isRefresh) {
-                                            Text(stringResource(R.string.osmcha_updating, osmchaLikes, osmchaDislikes))
+                                            Text(
+                                                stringResource(
+                                                    R.string.osmcha_updating,
+                                                    osmchaLikes,
+                                                    osmchaDislikes
+                                                )
+                                            )
                                         } else {
                                             Text(stringResource(R.string.osmcha_searching))
                                         }
                                     }
                                 },
-                                leadingContent = { Icon(Icons.Default.ThumbsUpDown, null, tint = MaterialTheme.colorScheme.secondary) },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Default.ThumbsUpDown,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.secondary
+                                    )
+                                },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
                         }
+
                         OsmchaState.Loaded -> ListItem(
                             headlineContent = { Text("OSMCHA", fontWeight = FontWeight.Medium) },
-                            supportingContent = { Text(stringResource(R.string.osmcha_rating, osmchaLikes, osmchaDislikes)) },
-                            leadingContent = { Icon(Icons.Default.ThumbsUpDown, null, tint = MaterialTheme.colorScheme.secondary) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.osmcha_rating,
+                                        osmchaLikes,
+                                        osmchaDislikes
+                                    )
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.ThumbsUpDown,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            },
                             trailingContent = {
                                 IconButton(onClick = onOsmchaRefresh) {
-                                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh_desc), tint = MaterialTheme.colorScheme.primary)
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = stringResource(R.string.refresh_desc),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
                                 }
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
+
                         OsmchaState.Error -> ListItem(
                             headlineContent = { Text("OSMCHA", fontWeight = FontWeight.Medium) },
                             supportingContent = { Text(stringResource(R.string.osmcha_error)) },
-                            leadingContent = { Icon(Icons.Default.ThumbsUpDown, null, tint = MaterialTheme.colorScheme.secondary) },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.ThumbsUpDown,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                            },
                             modifier = Modifier.clickable { onOsmchaRefresh() },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
                     if (osmchaLastChecked > 0L) {
-                        HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 20.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
                         ListItem(
-                            headlineContent = { Text(stringResource(R.string.last_osmcha_check), fontWeight = FontWeight.Medium) },
-                            supportingContent = { Text(formatRelativeTime(osmchaLastChecked, stringResource(R.string.time_now), stringResource(R.string.time_minutes_ago), stringResource(R.string.time_hours_ago), datePattern)) },
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.last_osmcha_check),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    formatRelativeTime(
+                                        osmchaLastChecked,
+                                        stringResource(R.string.time_now),
+                                        stringResource(R.string.time_minutes_ago),
+                                        stringResource(R.string.time_hours_ago),
+                                        datePattern
+                                    )
+                                )
+                            },
                             leadingContent = {
-                                Icon(Icons.Default.ThumbsUpDown, contentDescription = stringResource(R.string.last_osmcha_check), tint = MaterialTheme.colorScheme.secondary)
+                                Icon(
+                                    Icons.Default.ThumbsUpDown,
+                                    contentDescription = stringResource(R.string.last_osmcha_check),
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
-                    HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(
+                        Modifier.padding(horizontal = 20.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.last_activity), fontWeight = FontWeight.Medium) },
-                        supportingContent = { Text(analysis.lastActiveDate?.take(10) ?: stringResource(R.string.not_available)) },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.last_activity),
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                analysis.lastActiveDate?.take(10)
+                                    ?: stringResource(R.string.not_available)
+                            )
+                        },
                         leadingContent = {
                             Icon(
                                 Icons.Default.Refresh,
@@ -458,10 +586,28 @@ fun UserDetailScreen(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                     if (lastUpdated > 0L) {
-                        HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(
+                            Modifier.padding(horizontal = 20.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
                         ListItem(
-                            headlineContent = { Text(stringResource(R.string.last_data_sync), fontWeight = FontWeight.Medium) },
-                            supportingContent = { Text(formatRelativeTime(lastUpdated, stringResource(R.string.time_now), stringResource(R.string.time_minutes_ago), stringResource(R.string.time_hours_ago), datePattern)) },
+                            headlineContent = {
+                                Text(
+                                    stringResource(R.string.last_data_sync),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    formatRelativeTime(
+                                        lastUpdated,
+                                        stringResource(R.string.time_now),
+                                        stringResource(R.string.time_minutes_ago),
+                                        stringResource(R.string.time_hours_ago),
+                                        datePattern
+                                    )
+                                )
+                            },
                             leadingContent = {
                                 Icon(
                                     Icons.Default.Info,
@@ -482,14 +628,19 @@ fun UserDetailScreen(
                 text = stringResource(R.string.external_tools_section).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Black,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
                 color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 1.2.sp
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Column(modifier = Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 ExternalLinkButton(
                     text = stringResource(R.string.hdyc_stats),
                     icon = Icons.Default.Info,
@@ -537,7 +688,9 @@ fun StatusCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isActive) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = if (isActive) color else MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = 0.5f
+                ),
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -564,7 +717,10 @@ fun ExternalLinkButton(
             .height(56.dp),
         contentPadding = PaddingValues(horizontal = 20.dp),
         shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(16.dp))

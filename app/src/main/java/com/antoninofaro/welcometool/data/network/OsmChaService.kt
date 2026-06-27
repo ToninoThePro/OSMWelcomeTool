@@ -1,7 +1,7 @@
 package com.antoninofaro.welcometool.data.network
 
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import retrofit2.http.GET
 import retrofit2.http.Query
 

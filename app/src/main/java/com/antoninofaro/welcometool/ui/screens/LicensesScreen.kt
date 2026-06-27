@@ -24,8 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.antoninofaro.welcometool.R
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
@@ -47,7 +47,7 @@ fun LicensesScreen(onNavigateUp: () -> Unit) {
     val filteredLibs = remember(libs, query, selectedLicenses) {
         libs.copy(libraries = libs.libraries.filter { lib ->
             (query.isEmpty() || lib.name.contains(query, ignoreCase = true)) &&
-            (selectedLicenses.isEmpty() || lib.licenses.any { it.name in selectedLicenses })
+                    (selectedLicenses.isEmpty() || lib.licenses.any { it.name in selectedLicenses })
         })
     }
 
@@ -57,7 +57,10 @@ fun LicensesScreen(onNavigateUp: () -> Unit) {
                 title = { Text(stringResource(R.string.licenses_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateUp) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_desc))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back_desc)
+                        )
                     }
                 }
             )

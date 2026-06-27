@@ -19,8 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -43,16 +43,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -76,12 +69,12 @@ fun UserListScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
                         stringResource(R.string.app_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
-                    ) 
+                    )
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
@@ -112,7 +105,12 @@ fun UserListScreen(
                 onValueChange = { viewModel.updateSearchTerm(it) },
                 singleLine = true,
                 placeholder = { Text(stringResource(R.string.search_mapper)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_icon_desc)) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = stringResource(R.string.search_icon_desc)
+                    )
+                },
                 shape = RoundedCornerShape(12.dp),
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(
                     onDone = { viewModel.performSearch(uiState.searchTerm) }
@@ -201,12 +199,14 @@ fun UserListScreen(
             // Last sync timestamp (always visible)
             if (uiState.lastSyncTimestamp > 0L) {
                 Text(
-                    text = stringResource(R.string.data_freshness_label, formatRelativeTime(
-                        uiState.lastSyncTimestamp,
-                        stringResource(R.string.time_now),
-                        stringResource(R.string.time_minutes_ago),
-                        stringResource(R.string.time_hours_ago)
-                    )),
+                    text = stringResource(
+                        R.string.data_freshness_label, formatRelativeTime(
+                            uiState.lastSyncTimestamp,
+                            stringResource(R.string.time_now),
+                            stringResource(R.string.time_minutes_ago),
+                            stringResource(R.string.time_hours_ago)
+                        )
+                    ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
@@ -261,7 +261,8 @@ fun UserListScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = uiState.errorMessage ?: stringResource(R.string.search_error_fallback),
+                                    text = uiState.errorMessage
+                                        ?: stringResource(R.string.search_error_fallback),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.padding(24.dp)
@@ -278,7 +279,10 @@ fun UserListScreen(
                                     text = if (uiState.users.isEmpty()) {
                                         stringResource(R.string.empty_users_msg)
                                     } else {
-                                        stringResource(R.string.no_results_msg, uiState.searchTerm.trim())
+                                        stringResource(
+                                            R.string.no_results_msg,
+                                            uiState.searchTerm.trim()
+                                        )
                                     },
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(24.dp),
@@ -322,7 +326,11 @@ fun UserListScreen(
                                                 shape = RoundedCornerShape(12.dp),
                                                 modifier = Modifier.height(48.dp)
                                             ) {
-                                                Text(if (uiState.isPaging) stringResource(R.string.loading_label) else stringResource(R.string.load_more_btn))
+                                                Text(
+                                                    if (uiState.isPaging) stringResource(R.string.loading_label) else stringResource(
+                                                        R.string.load_more_btn
+                                                    )
+                                                )
                                             }
                                         }
 
@@ -388,7 +396,18 @@ private fun UserListItem(
                 )
                 if (osmchaLastChecked > 0L) {
                     Text(
-                        text = stringResource(R.string.osmcha_summary, analysis.osmchaLikes, analysis.osmchaDislikes, formatRelativeTime(osmchaLastChecked, stringResource(R.string.time_now), stringResource(R.string.time_minutes_ago), stringResource(R.string.time_hours_ago), datePattern)),
+                        text = stringResource(
+                            R.string.osmcha_summary,
+                            analysis.osmchaLikes,
+                            analysis.osmchaDislikes,
+                            formatRelativeTime(
+                                osmchaLastChecked,
+                                stringResource(R.string.time_now),
+                                stringResource(R.string.time_minutes_ago),
+                                stringResource(R.string.time_hours_ago),
+                                datePattern
+                            )
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
@@ -465,7 +484,7 @@ private fun UserListItem(
             }
 
             Icon(
-                Icons.AutoMirrored.Filled.ArrowForward, 
+                Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = stringResource(R.string.view_details_desc),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
