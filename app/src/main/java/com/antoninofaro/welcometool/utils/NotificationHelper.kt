@@ -133,7 +133,7 @@ class NotificationHelper @Inject constructor(
             if (Build.VERSION.SDK_INT >= 33) {
                 if (ActivityCompat.checkSelfPermission(
                         context,
-                        android.Manifest.permission.POST_NOTIFICATIONS
+                        Manifest.permission.POST_NOTIFICATIONS
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     Timber.w("Missing POST_NOTIFICATIONS permission. Notification not sent.")

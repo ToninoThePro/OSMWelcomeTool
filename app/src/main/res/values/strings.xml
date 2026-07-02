@@ -162,8 +162,9 @@
     <string name="welcomed_chip">Benvenuto</string>
     <string name="show_more">Mostra altro</string>
     <string name="show_less">Mostra meno</string>
+    <string name="api_requests_title">Chiamate API</string>
     <string name="offline_banner">Sei offline. I dati potrebbero non essere aggiornati.</string>
-    <string name="data_freshness_label">Aggiornato: %s</string>
+    <string name="data_freshness_label">Ultimo Aggiornamento: %s</string>
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Benvenuto su OSM Welcome Tool</string>

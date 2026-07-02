@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -758,9 +759,9 @@ private fun SettingsScreenContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 SettingsInfoItem(
-                    icon = Icons.Default.LocationOn,
-                    title = stringResource(R.string.default_area),
-                    description = "${settings.defaultAreaName} (${settings.defaultBBox})"
+                    icon = Icons.Default.Language,
+                    title = stringResource(R.string.api_requests_title),
+                    description = "OSM, Nominatim, OSMCha"
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))

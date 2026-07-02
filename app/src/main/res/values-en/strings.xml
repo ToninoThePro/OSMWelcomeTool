@@ -55,6 +55,7 @@
     <string name="hdyc_stats">HDYC Stats</string>
     <string name="interval_minutes">%d minutes</string>
     <string name="last_activity">Last Activity</string>
+    <string name="last_data_sync">Last data sync</string>
     <string name="last_osmcha_check">Last OSMCha Check</string>
     <string name="licenses_btn">Licenses</string>
     <string name="licenses_desc">Used libraries and licenses</string>
@@ -163,6 +164,9 @@
     <string name="show_less">Show less</string>
 
     <!-- Onboarding -->
+    <string name="api_requests_title">API Requests</string>
+    <string name="offline_banner">You are offline. The data might not be updated.</string>
+    <string name="data_freshness_label">Last Update</string>
     <string name="onboarding_welcome_title">Welcome to OSM Welcome Tool</string>
     <string name="onboarding_welcome_desc">A tool to welcome new OpenStreetMap mappers in your area.</string>
     <string name="onboarding_choose_area_title">Choose your area</string>
