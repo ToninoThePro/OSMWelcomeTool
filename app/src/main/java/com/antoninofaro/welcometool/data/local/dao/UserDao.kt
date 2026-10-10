@@ -23,7 +23,7 @@ interface UserDao {
     suspend fun getUserById(userId: Long): UserEntity?
 
     @Query("SELECT * FROM users WHERE id IN (:uids)")
-    suspend fun getUsersByIds(uids: List<Long>): List<UserEntity>
+    suspend fun getUsersByIds(uids: Set<Long>): List<UserEntity>
 
     @Query(
         """

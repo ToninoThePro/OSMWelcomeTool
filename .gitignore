@@ -2,6 +2,7 @@
 .gradle/
 /build/
 .gradle
+.opencode
 
 # Android Studio / IntelliJ IDEA
 *.iml

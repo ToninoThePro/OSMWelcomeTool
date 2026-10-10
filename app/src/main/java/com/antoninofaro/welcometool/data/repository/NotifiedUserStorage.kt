@@ -24,7 +24,11 @@ class NotifiedUserStorage @Inject constructor(
         store.edit { it[key] = (it[key] ?: emptySet()) + userId.toString() }
 
     suspend fun markAsNotifiedBatch(userIds: Collection<Long>) =
-        store.edit { it[key] = (it[key] ?: emptySet()) + userIds.map { it.toString() }.toSet() }
+        store.edit {
+            val existing = it[key] ?: emptySet()
+            val newIds = userIds.mapTo(mutableSetOf()) { it.toString() }
+            it[key] = existing + newIds
+        }
 
     suspend fun getAllNotifiedIds(): Set<String> = flow.first()
 

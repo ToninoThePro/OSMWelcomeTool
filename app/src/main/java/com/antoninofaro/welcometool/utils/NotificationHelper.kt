@@ -99,7 +99,7 @@ class NotificationHelper @Inject constructor(
         )
 
         val count = newChangesets.size
-        val distinctUsers = newChangesets.map { it.user }.distinct()
+        val distinctUsers = newChangesets.mapTo(mutableSetOf()) { it.user }
         val bodyText = if (distinctUsers.size <= 3) {
             context.getString(
                 R.string.notif_changeset_list,

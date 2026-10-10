@@ -9,9 +9,10 @@ fun formatRelativeTime(
     now: String,
     minAgo: String,
     hourAgo: String,
-    datePattern: String = "dd/MM/yyyy"
+    datePattern: String = "dd/MM/yyyy",
+    currentTimeMillis: Long = System.currentTimeMillis()
 ): String {
-    val diff = System.currentTimeMillis() - timestamp
+    val diff = currentTimeMillis - timestamp
     return when {
         diff < 60_000 -> now
         diff < 3_600_000 -> minAgo.format(diff / 60_000)

@@ -13,6 +13,7 @@ import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.OsmUser
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.model.UserImage
+import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
@@ -23,9 +24,11 @@ import com.antoninofaro.welcometool.utils.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -86,6 +89,13 @@ class MainViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    val settings: StateFlow<AppSettings> = settingsRepository.settingsFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = AppSettings()
+        )
 
     private fun updateUiState(transform: (MainUiState) -> MainUiState) {
         _uiState.value = transform(_uiState.value)
@@ -216,17 +226,22 @@ class MainViewModel @Inject constructor(
 
             changesets.reversed().forEach { latestChangesetByUid.putIfAbsent(it.uid, it) }
 
-            val currentWindowUids = changesets.map { it.uid }.distinct()
-            val uidsToSync = currentWindowUids.filterNot { seenUserIds.contains(it) }
+            val uidsToSync = mutableSetOf<Long>()
+            changesets.forEach {
+                if (!seenUserIds.contains(it.uid)) {
+                    uidsToSync.add(it.uid)
+                }
+            }
 
             if (uidsToSync.isNotEmpty()) {
-                val cachedUsersMap = userDao.getUsersByIds(uidsToSync).associateBy { it.id }
+                val cacheEnabled = settings.value.cacheEnabled
+                val cachedUsersMap = if (cacheEnabled) userDao.getUsersByIds(uidsToSync).associateBy { it.id } else emptyMap()
 
                 uidsToSync.forEach { uid ->
-                    val cached = cachedUsersMap[uid]
+                    val cached = if (cacheEnabled) cachedUsersMap[uid] else null
                     val recent = latestChangesetByUid[uid] ?: return@forEach
-                    if (!isUserUpdateRequired(cached, recent)) {
-                        val analysis = (cached ?: return@forEach).toAnalysis(recent.createdAt)
+                    if (cacheEnabled && cached != null && !isUserUpdateRequired(cached, recent)) {
+                        val analysis = cached.toAnalysis(recent.createdAt)
                             .copy(isWelcomed = welcomedIds.contains(uid.toString()))
 
                         allProcessedUsers.add(
@@ -691,12 +706,13 @@ class MainViewModel @Inject constructor(
 
     fun refreshUser(userId: Long, force: Boolean = false) {
         viewModelScope.launch {
-            val cachedUser = userDao.getUserById(userId)
+            val cacheEnabled = settings.value.cacheEnabled
+            val cachedUser = if (cacheEnabled) userDao.getUserById(userId) else null
 
             // Auto-refresh logic: only if forced OR (not stale according to 24h threshold)
             // Note: USER_CACHE_TTL_MS is 24h
             val isFresh =
-                cachedUser != null && (System.currentTimeMillis() - cachedUser.lastUpdated) < USER_CACHE_TTL_MS
+                cacheEnabled && cachedUser != null && (System.currentTimeMillis() - cachedUser.lastUpdated) < USER_CACHE_TTL_MS
 
             if (!force && isFresh) {
                 Timber.d("User $userId is fresh (< 24h), skipping auto-refresh")

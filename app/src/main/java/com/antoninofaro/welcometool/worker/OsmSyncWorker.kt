@@ -167,7 +167,7 @@ class OsmSyncWorker @AssistedInject constructor(
             return
         }
 
-        val uniqueUids = changesets.map { it.uid }.distinct()
+        val uniqueUids = changesets.mapTo(mutableSetOf()) { it.uid }
         val notifiedIds = notifiedUserStorage.getAllNotifiedIds()
         val changesetsByUid = changesets.reversed().associateBy { it.uid }
         val semaphore = Semaphore(SEMAPHORE_LIMIT)
