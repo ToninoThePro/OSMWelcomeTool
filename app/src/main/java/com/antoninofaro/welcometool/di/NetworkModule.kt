@@ -92,10 +92,11 @@ object NetworkModule {
     @Singleton
     @OsmClient
     fun provideOsmOkHttpClient(
-        @BaseClient baseClient: OkHttpClient
+        @BaseClient baseClient: OkHttpClient,
+        settingsRepository: SettingsRepository
     ): OkHttpClient {
         return baseClient.newBuilder()
-            .addNetworkInterceptor(OsmCacheControlInterceptor())
+            .addNetworkInterceptor(OsmCacheControlInterceptor(settingsRepository))
             .build()
     }
 
@@ -138,6 +139,7 @@ object NetworkModule {
                     .build()
                 chain.proceed(authed)
             }
+            .addNetworkInterceptor(OsmChaCacheControlInterceptor(settingsRepository))
             .build()
     }
 

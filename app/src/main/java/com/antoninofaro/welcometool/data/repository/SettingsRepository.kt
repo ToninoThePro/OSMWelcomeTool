@@ -61,6 +61,9 @@ class SettingsRepository @Inject constructor(
 ) {
     private val dataStore = context.dataStore
     private var cachedOsmchaToken: String = secureTokenStorage.getOsmchaToken()
+    private var cachedCacheEnabled: Boolean = true
+
+    fun isCacheEnabledOnce(): Boolean = cachedCacheEnabled
 
     companion object {
         private val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -86,6 +89,8 @@ class SettingsRepository @Inject constructor(
     }
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { preferences ->
+        val cacheEnabled = preferences[CACHE_ENABLED] ?: true
+        cachedCacheEnabled = cacheEnabled
         AppSettings(
             themeMode = preferences[THEME_MODE] ?: "system",
             dynamicColor = preferences[DYNAMIC_COLOR] ?: false,
@@ -96,7 +101,7 @@ class SettingsRepository @Inject constructor(
             showNotifications = preferences[SHOW_NOTIFICATIONS] ?: false,
             showNewChangesetNotifications = preferences[SHOW_NEW_CHANGESET_NOTIFICATIONS] ?: false,
             minChangesetsFilter = preferences[MIN_CHANGESETS_FILTER] ?: 0,
-            cacheEnabled = preferences[CACHE_ENABLED] ?: true,
+            cacheEnabled = cacheEnabled,
             osmchaToken = cachedOsmchaToken,
             verifiedOsmchaUsername = preferences[VERIFIED_OSMCHA_USERNAME] ?: "",
             osmchaChangesetsLimit = preferences[OSMCHA_CHANGESETS_LIMIT] ?: 100,
@@ -181,7 +186,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateMinChangesetsFilter(min: Int) = updatePreference(MIN_CHANGESETS_FILTER, min)
 
-    suspend fun updateCacheEnabled(enabled: Boolean) = updatePreference(CACHE_ENABLED, enabled)
+    suspend fun updateCacheEnabled(enabled: Boolean) {
+        cachedCacheEnabled = enabled
+        updatePreference(CACHE_ENABLED, enabled)
+    }
 
     suspend fun updateOsmchaToken(token: String) {
         val normalized = normalizeOsmchaToken(token)

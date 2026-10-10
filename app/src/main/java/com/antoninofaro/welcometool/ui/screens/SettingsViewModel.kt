@@ -97,6 +97,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun triggerManualSync(context: android.content.Context) {
+        com.antoninofaro.welcometool.utils.WorkerUtils.triggerOneTimeOsmSync(context)
+    }
+
     fun setOnboardingCompleted(completed: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateOnboardingCompleted(completed)

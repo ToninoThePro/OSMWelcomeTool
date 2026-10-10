@@ -163,7 +163,7 @@ fun AppNavigation(
             val userIdStr = backStackEntry.arguments?.getString("userId")
             val userId = userIdStr?.toLongOrNull()
 
-            val selectedUserUiModel = uiState.filteredUsers.find { it.user.id == userId }
+            val selectedUserUiModel = uiState.users.find { it.user.id == userId }
                 ?: uiState.users.find { it.user.id == userId }
 
             if (selectedUserUiModel != null && userId != null) {

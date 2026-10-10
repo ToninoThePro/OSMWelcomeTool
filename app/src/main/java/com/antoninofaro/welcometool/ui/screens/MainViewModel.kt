@@ -23,6 +23,8 @@ import com.antoninofaro.welcometool.utils.ConnectivityObserver
 import com.antoninofaro.welcometool.utils.Constants
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,7 +51,6 @@ data class MainUiState(
     val isRefreshing: Boolean = false,
     val isPaging: Boolean = false,
     val users: List<UserUiModel> = emptyList(),
-    val filteredUsers: List<UserUiModel> = emptyList(),
     val errorMessage: String? = null,
     val hasReachedEnd: Boolean = false,
     val selectedBBox: String = Constants.ITALY_BBOX,
@@ -97,16 +98,12 @@ class MainViewModel @Inject constructor(
             initialValue = AppSettings()
         )
 
-    private fun updateUiState(transform: (MainUiState) -> MainUiState) {
-        _uiState.value = transform(_uiState.value)
-    }
-
-
     private val welcomedMutex = Mutex()
     private val toggleMutex = Mutex()
     private var welcomedIdsCache: Set<String>? = null
     private var oldestChangesetCursor: String? = null
     private var currentPageOffset: Int = 0
+    private var searchJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -158,10 +155,8 @@ class MainViewModel @Inject constructor(
                     if (isPageFresh) {
                         _uiState.value = _uiState.value.copy(
                             users = pageUsers,
-                            filteredUsers = pageUsers,
                             hasReachedEnd = pageUsers.size < LOCAL_PAGE_SIZE
                         )
-                        applyFilters()
                         return@launch
                     }
                 }
@@ -182,10 +177,8 @@ class MainViewModel @Inject constructor(
 
                 _uiState.value = _uiState.value.copy(
                     users = refreshedUsers,
-                    filteredUsers = refreshedUsers,
                     hasReachedEnd = refreshedUsers.size < LOCAL_PAGE_SIZE
                 )
-                applyFilters()
 
                 Timber.d(
                     "Loaded ${refreshedUsers.size} utenti locali per bbox $selectedBBox, offset=$currentPageOffset, next cursor=$oldestChangesetCursor"
@@ -313,7 +306,21 @@ class MainViewModel @Inject constructor(
     }
 
     private suspend fun loadLocalUsersPage(bbox: String, offset: Int): List<UserUiModel> {
-        return userDao.getUsersForBBoxPage(bbox, LOCAL_PAGE_SIZE, offset)
+        val state = _uiState.value
+        val term = state.searchTerm.trim()
+            .replace("\\", "\\\\")
+            .replace("_", "\\_")
+            .replace("%", "\\%")
+        return userDao.getUsersForBBoxFiltered(
+            bbox = bbox,
+            searchTerm = term,
+            minEdits = state.minChanges,
+            filterNewcomer = state.filterIsNewcomer,
+            filterReturning = state.filterIsReturning,
+            filterPowerUser = state.filterIsPowerUser,
+            limit = LOCAL_PAGE_SIZE,
+            offset = offset
+        )
             .map { it.toUiModel() }
             .let(::sortUsersByAreaActivity)
     }
@@ -331,12 +338,10 @@ class MainViewModel @Inject constructor(
         if (cachedUsers.isNotEmpty()) {
             _uiState.value = _uiState.value.copy(
                 users = cachedUsers,
-                filteredUsers = cachedUsers,
                 errorMessage = null,
                 isLoading = false,
                 hasReachedEnd = cachedUsers.size < LOCAL_PAGE_SIZE
             )
-            applyFilters()
         } else {
             _uiState.value = _uiState.value.copy(
                 errorMessage = fallbackErrorMessage,
@@ -480,7 +485,6 @@ class MainViewModel @Inject constructor(
                     osmchaDislikes = dislikes,
                     users = updatedUsers
                 )
-                applyFilters()
                 userDao.updateOsmchaStats(userId, likes, dislikes, now, now)
             }
 
@@ -490,60 +494,61 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun updateSearchTerm(term: String) {
-        _uiState.value = _uiState.value.copy(searchTerm = term)
-        applyFilters()
-    }
-
-    fun performSearch(query: String) {
-        val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) {
-            _uiState.value =
-                _uiState.value.copy(errorMessage = application.getString(R.string.enter_valid_username))
-            return
-        }
-
+    private fun reloadLocalData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-
+            _uiState.value = _uiState.value.copy(
+                isLoading = true, 
+                errorMessage = null, 
+                hasReachedEnd = false,
+                users = emptyList() // clear the users list as requested
+            )
+            currentPageOffset = 0
             try {
-                val escapedQuery = normalizedQuery
-                    .replace("\\", "\\\\")
-                    .replace("_", "\\_")
-                    .replace("%", "\\%")
-                val searchResults = userDao.searchUsersForBBox(
-                    _uiState.value.selectedBBox,
-                    "%$escapedQuery%"
-                ).map { it.toUiModel() }
-
-                if (searchResults.isEmpty()) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = application.getString(R.string.user_not_in_cache)
-                    )
-                    return@launch
-                }
-
+                val pageUsers = loadLocalUsersPage(_uiState.value.selectedBBox, currentPageOffset)
                 _uiState.value = _uiState.value.copy(
-                    filteredUsers = searchResults,
-                    isLoading = false,
-                    searchTerm = normalizedQuery,
-                    filterIsNewcomer = false,
-                    filterIsReturning = false,
-                    filterIsPowerUser = false
+                    users = pageUsers,
+                    hasReachedEnd = pageUsers.size < LOCAL_PAGE_SIZE
                 )
-
-
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.e(e, "Error searching user manually: $normalizedQuery")
+                Timber.e(e, "Error reloading local data")
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = application.getString(R.string.error_search_format, e.message)
+                    errorMessage = application.getString(R.string.error_prefix, e.message)
                 )
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    fun updateSearchTerm(term: String) {
+        _uiState.value = _uiState.value.copy(searchTerm = term)
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300)
+            reloadLocalData()
+        }
+    }
+
+    fun updateMinChanges(min: Int) {
+        _uiState.value = _uiState.value.copy(minChanges = min.coerceAtLeast(0))
+        reloadLocalData()
+    }
+
+    fun toggleNewcomerFilter() {
+        _uiState.value = _uiState.value.copy(filterIsNewcomer = !_uiState.value.filterIsNewcomer)
+        reloadLocalData()
+    }
+
+    fun toggleReturningFilter() {
+        _uiState.value = _uiState.value.copy(filterIsReturning = !_uiState.value.filterIsReturning)
+        reloadLocalData()
+    }
+
+    fun togglePowerUserFilter() {
+        _uiState.value = _uiState.value.copy(filterIsPowerUser = !_uiState.value.filterIsPowerUser)
+        reloadLocalData()
     }
 
     fun loadMoreUsers() {
@@ -570,7 +575,6 @@ class MainViewModel @Inject constructor(
                     users = mergedUsers,
                     hasReachedEnd = nextPage.size < LOCAL_PAGE_SIZE
                 )
-                applyFilters()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -595,26 +599,6 @@ class MainViewModel @Inject constructor(
 
     fun onPullToRefresh() {
         loadData(forceRefresh = true)
-    }
-
-    fun updateMinChanges(min: Int) {
-        _uiState.value = _uiState.value.copy(minChanges = min.coerceAtLeast(0))
-        applyFilters()
-    }
-
-    fun toggleNewcomerFilter() {
-        _uiState.value = _uiState.value.copy(filterIsNewcomer = !_uiState.value.filterIsNewcomer)
-        applyFilters()
-    }
-
-    fun toggleReturningFilter() {
-        _uiState.value = _uiState.value.copy(filterIsReturning = !_uiState.value.filterIsReturning)
-        applyFilters()
-    }
-
-    fun togglePowerUserFilter() {
-        _uiState.value = _uiState.value.copy(filterIsPowerUser = !_uiState.value.filterIsPowerUser)
-        applyFilters()
     }
 
     private fun UserEntity.toOsmUser(): OsmUser {
@@ -655,28 +639,6 @@ class MainViewModel @Inject constructor(
         )
     }
 
-    private fun applyFilters() {
-        val current = _uiState.value
-        val term = current.searchTerm.trim()
-        val hasCatFilter =
-            current.filterIsNewcomer || current.filterIsReturning || current.filterIsPowerUser
-
-        val filtered = current.users.filter { m ->
-            val matchesSearch =
-                term.isBlank() || m.user.displayName.contains(term, ignoreCase = true)
-            val matchesCategory = !hasCatFilter || (
-                    (current.filterIsNewcomer && m.analysis.isNewcomer) ||
-                            (current.filterIsReturning && m.analysis.isReturning) ||
-                            (current.filterIsPowerUser && m.analysis.isPowerUser)
-                    )
-            val matchesMinChanges =
-                current.minChanges <= 0 || m.analysis.totalEdits >= current.minChanges
-
-            matchesSearch && matchesCategory && matchesMinChanges
-        }
-        updateUiState { it.copy(filteredUsers = filtered) }
-    }
-
     fun toggleWelcomed(userId: Long, currentStatus: Boolean) {
         viewModelScope.launch {
             toggleMutex.withLock {
@@ -699,7 +661,6 @@ class MainViewModel @Inject constructor(
                 }
 
                 _uiState.value = _uiState.value.copy(users = updatedUsers)
-                applyFilters()
             }
         }
     }
@@ -743,7 +704,6 @@ class MainViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 users = _uiState.value.users.map { if (it.user.id == userId) updatedModel else it }
             )
-            applyFilters()
         }
     }
 

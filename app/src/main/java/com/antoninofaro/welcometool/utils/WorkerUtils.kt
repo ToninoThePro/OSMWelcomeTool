@@ -46,4 +46,27 @@ object WorkerUtils {
             request
         )
     }
+
+    const val OSM_SYNC_ONETIME_WORK_NAME = "OsmSyncOneTimeWork"
+
+    fun triggerOneTimeOsmSync(context: Context) {
+        val workManager = WorkManager.getInstance(context)
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(true)
+            .setRequiresStorageNotLow(true)
+            .build()
+
+        val request = androidx.work.OneTimeWorkRequestBuilder<OsmSyncWorker>()
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WORKER_BACKOFF_SECONDS, TimeUnit.SECONDS)
+            .build()
+
+        workManager.enqueueUniqueWork(
+            OSM_SYNC_ONETIME_WORK_NAME,
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            request
+        )
+        Timber.d("Enqueued one-time OSM sync work.")
+    }
 }

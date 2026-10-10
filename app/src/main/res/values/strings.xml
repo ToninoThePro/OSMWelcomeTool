@@ -130,6 +130,7 @@
     <string name="reset_dialog_title">Ripristina Impostazioni</string>
     <string name="reset_settings_btn">Ripristina Impostazioni Predefinite</string>
     <string name="returning_filter">Ritornati</string>
+    <string name="advanced_filters">Filtri Avanzati</string>
     <string name="save_btn">Salva</string>
     <string name="saved_areas_title">Aree salvate</string>
     <string name="search_area_label">Cerca area con Nominatim</string>
@@ -140,6 +141,7 @@
     <string name="search_libraries_placeholder">Cerca librerie…</string>
     <string name="search_mapper">Cerca mappatore…</string>
     <string name="search_results_title">Risultati ricerca</string>
+    <string name="scroll_to_top_desc">Torna in cima</string>
     <string name="selected_desc">Selezionato</string>
     <string name="send_and_welcome">Manda un messaggio su OSM e segnalo come benvenutato</string>
     <string name="set_default">Imposta</string>
@@ -175,4 +177,5 @@
     <string name="onboarding_start_monitoring">Avvia monitoraggio</string>
     <string name="onboarding_notifications_title">Notifiche</string>
     <string name="onboarding_notifications_desc">Ricevi avvisi per nuovi mappatori nella zona</string>
+    <string name="sync_now_btn">Sincronizza Ora</string>
 </resources>

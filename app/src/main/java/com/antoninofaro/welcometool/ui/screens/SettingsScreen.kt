@@ -280,6 +280,7 @@ private fun SettingsScreenContent(
                 isExpanded = "updates" in expandedSections,
                 onToggle = { expandedSections = expandedSections.toggle("updates") }
             ) {
+                val context = LocalContext.current
                 SettingsToggleItem(
                     icon = Icons.Default.Refresh,
                     title = stringResource(R.string.auto_refresh_title),
@@ -316,9 +317,23 @@ private fun SettingsScreenContent(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(16.dp))
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { viewModel.triggerManualSync(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.sync_now_btn))
+                }
+
                 Spacer(modifier = Modifier.height(12.dp))
 
-                val context = LocalContext.current
                 val permissionLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission()
                 ) { isGranted ->

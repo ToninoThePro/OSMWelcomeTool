@@ -1,5 +1,12 @@
 package com.antoninofaro.welcometool.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,12 +21,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
@@ -30,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +53,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -55,6 +71,7 @@ import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.ui.components.ProfileAvatar
 import com.antoninofaro.welcometool.ui.components.fadingEdge
 import com.antoninofaro.welcometool.utils.formatRelativeTime
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +81,14 @@ fun UserListScreen(
     onNavigateToSettings: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var isSearchVisible by rememberSaveable { mutableStateOf(false) }
+    var isAdvancedFiltersVisible by rememberSaveable { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val showScrollToTop by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -77,6 +102,17 @@ fun UserListScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = {
+                        isSearchVisible = !isSearchVisible
+                        if (!isSearchVisible && uiState.searchTerm.isNotEmpty()) {
+                            viewModel.updateSearchTerm("")
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = stringResource(R.string.search_icon_desc)
+                        )
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             Icons.Default.Settings,
@@ -89,6 +125,28 @@ fun UserListScreen(
                     scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
+        },
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = showScrollToTop,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(
+                        Icons.Default.KeyboardArrowUp,
+                        contentDescription = stringResource(R.string.scroll_to_top_desc)
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -97,33 +155,37 @@ fun UserListScreen(
                 .padding(paddingValues)
         ) {
             // Search & Filters
-            OutlinedTextField(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                value = uiState.searchTerm,
-                onValueChange = { viewModel.updateSearchTerm(it) },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.search_mapper)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = stringResource(R.string.search_icon_desc)
+            AnimatedVisibility(
+                visible = isSearchVisible,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                OutlinedTextField(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    value = uiState.searchTerm,
+                    onValueChange = { viewModel.updateSearchTerm(it) },
+                    singleLine = true,
+                    placeholder = { Text(stringResource(R.string.search_mapper)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = stringResource(R.string.search_icon_desc)
+                        )
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Search
                     )
-                },
-                shape = RoundedCornerShape(12.dp),
-                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                    onDone = { viewModel.performSearch(uiState.searchTerm) }
-                ),
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
                 )
-            )
+            }
 
             // Filter Chips Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -163,37 +225,55 @@ fun UserListScreen(
                         ) else null
                     }
                 )
+                FilterChip(
+                    selected = isAdvancedFiltersVisible,
+                    onClick = { isAdvancedFiltersVisible = !isAdvancedFiltersVisible },
+                    label = { Text(stringResource(R.string.advanced_filters)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.advanced_filters),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
             }
 
             // Min edits filter
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            AnimatedVisibility(
+                visible = isAdvancedFiltersVisible,
+                enter = expandVertically(),
+                exit = shrinkVertically()
             ) {
-                Text(
-                    text = stringResource(R.string.min_edits_short),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                    value = if (uiState.minChanges == 0) "" else uiState.minChanges.toString(),
-                    onValueChange = { text ->
-                        if (text.isEmpty() || text.all { it.isDigit() }) {
-                            viewModel.updateMinChanges(text.toIntOrNull() ?: 0)
-                        }
-                    },
-                    modifier = Modifier.width(80.dp),
-                    singleLine = true,
-                    placeholder = { Text("0") },
-                    shape = RoundedCornerShape(8.dp),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
-                    ),
-                    textStyle = MaterialTheme.typography.bodySmall
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.min_edits_short),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = if (uiState.minChanges == 0) "" else uiState.minChanges.toString(),
+                        onValueChange = { text ->
+                            if (text.isEmpty() || text.all { it.isDigit() }) {
+                                viewModel.updateMinChanges(text.toIntOrNull() ?: 0)
+                            }
+                        },
+                        modifier = Modifier.width(80.dp),
+                        singleLine = true,
+                        placeholder = { Text("0") },
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        ),
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
 
             // Last sync timestamp (always visible)
@@ -270,19 +350,19 @@ fun UserListScreen(
                             }
                         }
 
-                        uiState.filteredUsers.isEmpty() -> {
+                        uiState.users.isEmpty() -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (uiState.users.isEmpty()) {
-                                        stringResource(R.string.empty_users_msg)
-                                    } else {
+                                    text = if (uiState.searchTerm.isNotBlank() || uiState.minChanges > 0 || uiState.filterIsNewcomer || uiState.filterIsReturning || uiState.filterIsPowerUser) {
                                         stringResource(
                                             R.string.no_results_msg,
                                             uiState.searchTerm.trim()
                                         )
+                                    } else {
+                                        stringResource(R.string.empty_users_msg)
                                     },
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(24.dp),
@@ -295,11 +375,12 @@ fun UserListScreen(
                             val isSearchingByName = uiState.searchTerm.trim().isNotBlank()
 
                             LazyColumn(
+                                state = listState,
                                 contentPadding = PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 items(
-                                    items = uiState.filteredUsers,
+                                    items = uiState.users,
                                     key = { it.user.id },
                                     contentType = { "user_item" }
                                 ) { userModel ->

@@ -130,6 +130,7 @@
     <string name="reset_dialog_title">Reset Settings</string>
     <string name="reset_settings_btn">Reset to Defaults</string>
     <string name="returning_filter">Returning</string>
+    <string name="advanced_filters">Advanced Filters</string>
     <string name="save_btn">Save</string>
     <string name="saved_areas_title">Saved areas</string>
     <string name="search_area_label">Search area with Nominatim</string>
@@ -140,6 +141,7 @@
     <string name="search_libraries_placeholder">Search libraries…</string>
     <string name="search_mapper">Search mapper…</string>
     <string name="search_results_title">Search results</string>
+    <string name="scroll_to_top_desc">Scroll to top</string>
     <string name="selected_desc">Selected</string>
     <string name="send_and_welcome">Send a message on OSM and mark as welcomed</string>
     <string name="set_default">Set as Default</string>
@@ -175,4 +177,5 @@
     <string name="onboarding_start_monitoring">Start monitoring</string>
     <string name="onboarding_notifications_title">Notifications</string>
     <string name="onboarding_notifications_desc">Receive alerts for new mappers in the area</string>
+    <string name="sync_now_btn">Sync Now</string>
 </resources>

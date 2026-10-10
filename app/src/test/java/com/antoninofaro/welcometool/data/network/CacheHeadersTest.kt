@@ -107,4 +107,20 @@ class CacheHeadersTest {
         val request = mockWebServer.takeRequest()
         assertThat(request.getHeader("User-Agent")).contains("OSMWelcomeTool")
     }
+
+    @Test
+    fun `when cache is disabled response gets no-cache header`() {
+        val client = OkHttpClient.Builder()
+            .addNetworkInterceptor(OsmCacheControlInterceptor { false })
+            .build()
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        val response = client.newCall(
+            okhttp3.Request.Builder().url(mockWebServer.url("/api/0.6/user/123.json")).build()
+        ).execute()
+
+        val cacheControl = response.header("Cache-Control")
+        assertThat(cacheControl).contains("no-store")
+        assertThat(response.header("Pragma")).isEqualTo("no-cache")
+    }
 }
