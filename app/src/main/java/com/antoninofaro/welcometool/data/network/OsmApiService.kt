@@ -36,4 +36,9 @@ interface OsmApiService {
         @Query("display_name") username: String,
         @Query("limit") limit: Int = 1
     ): OsmChangesetWrapper
+
+    @GET("api/0.6/changeset/{id}/download")
+    suspend fun getChangesetDownload(
+        @retrofit2.http.Path("id") id: Long
+    ): okhttp3.ResponseBody
 }

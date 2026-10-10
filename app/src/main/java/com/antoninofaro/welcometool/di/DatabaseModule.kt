@@ -24,4 +24,8 @@ object DatabaseModule {
     fun provideUserDao(appDatabase: AppDatabase): com.antoninofaro.welcometool.data.local.dao.UserDao =
         appDatabase.userDao()
 
+    @Singleton
+    @Provides
+    fun provideChangesetDao(appDatabase: AppDatabase): com.antoninofaro.welcometool.data.local.dao.ChangesetDao =
+        appDatabase.changesetDao()
 }

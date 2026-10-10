@@ -103,4 +103,18 @@ class OsmRepository @Inject constructor(
             }
         }
     }
+
+    suspend fun fetchChangesetDownload(changesetId: Long): Result<com.antoninofaro.welcometool.data.model.ChangedElementGroup> {
+        return safeApiCall {
+            val response = apiService.getChangesetDownload(changesetId)
+            val xmlString = response.string()
+            com.antoninofaro.welcometool.domain.OsmChangeParser.parse(xmlString)
+        }.also { result ->
+            if (result.isError) {
+                Timber.e(result.exceptionOrNull(), "Error fetching changeset download for id: $changesetId")
+            } else {
+                Timber.d("Successfully fetched changeset download for id: $changesetId")
+            }
+        }
+    }
 }

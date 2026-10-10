@@ -15,7 +15,36 @@ interface OsmChaService {
 
     @GET("users/")
     suspend fun getCurrentUser(): OsmChaUserResponse
+
+    @GET("changesets/{id}/")
+    suspend fun getChangesetDetail(
+        @retrofit2.http.Path("id") id: Long
+    ): OsmChaChangesetDetailResponse
 }
+
+@Serializable
+data class OsmChaChangesetDetailResponse(
+    val id: Long,
+    val reasons: List<OsmChaReason> = emptyList(),
+    val check_user: String? = null,
+    val checked: Boolean = false,
+    val harmful: Boolean? = null,
+    val is_suspect: Boolean = false,
+    val create: Int = 0,
+    val modify: Int = 0,
+    val delete: Int = 0,
+    val tags: List<OsmChaTag> = emptyList()
+)
+
+@Serializable
+data class OsmChaReason(
+    val name: String
+)
+
+@Serializable
+data class OsmChaTag(
+    val name: String
+)
 
 @Serializable
 data class OsmChaResponse(

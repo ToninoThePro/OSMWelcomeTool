@@ -16,7 +16,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.antoninofaro.welcometool.ui.screens.ChangesetDetailScreen
+import com.antoninofaro.welcometool.ui.screens.ChangesetListScreen
+import com.antoninofaro.welcometool.ui.screens.ChangesetsViewModel
 import com.antoninofaro.welcometool.ui.screens.LicensesScreen
 import com.antoninofaro.welcometool.ui.screens.MainViewModel
 import com.antoninofaro.welcometool.ui.screens.OnboardingScreen
@@ -45,6 +56,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val changesetsViewModel: ChangesetsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,7 +127,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (settings.isLoaded) {
-                    AppNavigation(viewModel, settingsViewModel, settings.isOnboardingCompleted)
+                    AppNavigation(viewModel, settingsViewModel, changesetsViewModel, settings.isOnboardingCompleted)
                 }
                 }
             }
@@ -127,6 +139,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     viewModel: MainViewModel,
     settingsViewModel: SettingsViewModel,
+    changesetsViewModel: ChangesetsViewModel,
     isOnboardingCompleted: Boolean
 ) {
     val navController = rememberNavController()
@@ -148,10 +161,14 @@ fun AppNavigation(
         }
 
         composable("user_list") {
-            UserListScreen(
+            MainHome(
                 viewModel = viewModel,
+                changesetsViewModel = changesetsViewModel,
                 onUserClick = { user, _ ->
                     navController.navigate("user_detail/${user.id}")
+                },
+                onChangesetClick = { changeset ->
+                    navController.navigate("changeset_detail/${changeset.entity.id}")
                 },
                 onNavigateToSettings = {
                     navController.navigate("settings")
@@ -196,6 +213,38 @@ fun AppNavigation(
             }
         }
 
+        composable("changeset_detail/{changesetId}") { backStackEntry ->
+            val changesetIdStr = backStackEntry.arguments?.getString("changesetId")
+            val changesetId = changesetIdStr?.toLongOrNull()
+            
+            val uiState by changesetsViewModel.uiState.collectAsState()
+            val changeset = uiState.changesets.find { it.entity.id == changesetId }
+            
+            if (changeset != null && changesetId != null) {
+                LaunchedEffect(changesetId) {
+                    changesetsViewModel.loadChangesetElements(changesetId)
+                    changesetsViewModel.refreshOsmchaDetails(changesetId)
+                }
+                
+                ChangesetDetailScreen(
+                    uiModel = changeset,
+                    elements = uiState.selectedChangesetElements,
+                    isElementsLoading = uiState.isElementsLoading,
+                    onNavigateUp = { navController.navigateUp() },
+                    onUserClick = { uid ->
+                        navController.navigate("user_detail/$uid")
+                    },
+                    onExpandElements = {
+                        changesetsViewModel.loadChangesetElements(changesetId)
+                    }
+                )
+            } else {
+                LaunchedEffect(Unit) {
+                    navController.navigateUp()
+                }
+            }
+        }
+
         composable("settings") {
             SettingsScreen(
                 viewModel = settingsViewModel,
@@ -208,6 +257,75 @@ fun AppNavigation(
             LicensesScreen(
                 onNavigateUp = { navController.navigateUp() }
             )
+        }
+    }
+}
+
+@Composable
+fun MainHome(
+    viewModel: MainViewModel,
+    changesetsViewModel: ChangesetsViewModel,
+    onUserClick: (com.antoninofaro.welcometool.data.model.OsmUser, com.antoninofaro.welcometool.domain.UserAnalysis) -> Unit,
+    onChangesetClick: (com.antoninofaro.welcometool.data.model.ChangesetUiModel) -> Unit,
+    onNavigateToSettings: () -> Unit
+) {
+    val nestedNavController = rememberNavController()
+    val navBackStackEntry by nestedNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route ?: "mappers"
+
+    androidx.compose.material3.Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Mappers") },
+                    label = { Text("Mappers") },
+                    selected = currentRoute == "mappers",
+                    onClick = {
+                        if (currentRoute != "mappers") {
+                            nestedNavController.navigate("mappers") {
+                                popUpTo(nestedNavController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Changesets") },
+                    label = { Text("Changesets") },
+                    selected = currentRoute == "changesets",
+                    onClick = {
+                        if (currentRoute != "changesets") {
+                            nestedNavController.navigate("changesets") {
+                                popUpTo(nestedNavController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                )
+            }
+        }
+    ) { paddingValues ->
+        androidx.compose.foundation.layout.Box(modifier = Modifier.padding(paddingValues)) {
+            NavHost(navController = nestedNavController, startDestination = "mappers") {
+                composable("mappers") {
+                    UserListScreen(
+                        viewModel = viewModel,
+                        onUserClick = onUserClick,
+                        onNavigateToSettings = onNavigateToSettings
+                    )
+                }
+                composable("changesets") {
+                    ChangesetListScreen(
+                        viewModel = changesetsViewModel,
+                        onChangesetClick = onChangesetClick
+                    )
+                }
+            }
         }
     }
 }

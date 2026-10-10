@@ -73,6 +73,7 @@ class MainViewModel @Inject constructor(
     private val welcomedUserStorage: WelcomedUserStorage,
     private val osmChaRepository: com.antoninofaro.welcometool.data.repository.OsmChaRepository,
     private val userDao: UserDao,
+    private val changesetDao: com.antoninofaro.welcometool.data.local.dao.ChangesetDao,
     private val settingsRepository: SettingsRepository,
     private val connectivityObserver: ConnectivityObserver,
 ) : ViewModel() {
@@ -216,6 +217,28 @@ class MainViewModel @Inject constructor(
             if (changesetsResult !is Result.Success) break
             val changesets = changesetsResult.data
             if (changesets.isEmpty()) break
+            
+            changesetDao.insertOrUpdateChangesets(changesets.map {
+                val tagsJson = if (!it.tags.isNullOrEmpty()) {
+                    kotlinx.serialization.json.Json.encodeToString(it.tags)
+                } else null
+                com.antoninofaro.welcometool.data.entity.ChangesetEntity(
+                    id = it.id,
+                    bbox = bbox,
+                    createdAt = it.createdAt,
+                    closedAt = it.closedAt,
+                    open = it.open,
+                    user = it.user,
+                    uid = it.uid,
+                    minLat = it.minLat,
+                    minLon = it.minLon,
+                    maxLat = it.maxLat,
+                    maxLon = it.maxLon,
+                    numChanges = it.totalChanges,
+                    commentsCount = it.commentsCount,
+                    tagsJson = tagsJson
+                )
+            })
 
             changesets.reversed().forEach { latestChangesetByUid.putIfAbsent(it.uid, it) }
 

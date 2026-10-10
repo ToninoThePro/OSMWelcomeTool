@@ -29,7 +29,8 @@ class OsmSyncWorker @AssistedInject constructor(
     private val osmRepository: OsmRepository,
     private val settingsRepository: SettingsRepository,
     private val notificationHelper: NotificationHelper,
-    private val notifiedUserStorage: NotifiedUserStorage
+    private val notifiedUserStorage: NotifiedUserStorage,
+    private val changesetDao: com.antoninofaro.welcometool.data.local.dao.ChangesetDao
 ) : CoroutineWorker(appContext, workerParams) {
 
     companion object {
@@ -123,7 +124,31 @@ class OsmSyncWorker @AssistedInject constructor(
             timeRange = timeRange,
             limit = CHANGESET_LIMIT
         )
-        return result.getOrNull()
+        val list = result.getOrNull()
+        if (!list.isNullOrEmpty()) {
+            changesetDao.insertOrUpdateChangesets(list.map {
+                val tagsJson = if (!it.tags.isNullOrEmpty()) {
+                    kotlinx.serialization.json.Json.encodeToString(it.tags)
+                } else null
+                com.antoninofaro.welcometool.data.entity.ChangesetEntity(
+                    id = it.id,
+                    bbox = settings.defaultBBox,
+                    createdAt = it.createdAt,
+                    closedAt = it.closedAt,
+                    open = it.open,
+                    user = it.user,
+                    uid = it.uid,
+                    minLat = it.minLat,
+                    minLon = it.minLon,
+                    maxLat = it.maxLat,
+                    maxLon = it.maxLon,
+                    numChanges = it.totalChanges,
+                    commentsCount = it.commentsCount,
+                    tagsJson = tagsJson
+                )
+            })
+        }
+        return list
     }
 
     private fun batchContainsChangeset(batch: List<OsmChangeset>, targetDate: String): Boolean {

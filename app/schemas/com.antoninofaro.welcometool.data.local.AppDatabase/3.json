@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "a2374533b2d9105dc311fe3b0ce2c683",
+    "identityHash": "fef574c7a88e91c18ee50a99abe1c893",
     "entities": [
       {
         "tableName": "users",
@@ -197,11 +197,152 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_user_area_activity_bbox` ON `${TABLE_NAME}` (`bbox`)"
           }
         ]
+      },
+      {
+        "tableName": "changesets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `bbox` TEXT NOT NULL, `createdAt` TEXT NOT NULL, `closedAt` TEXT, `open` INTEGER NOT NULL, `user` TEXT NOT NULL, `uid` INTEGER NOT NULL, `minLat` REAL, `minLon` REAL, `maxLat` REAL, `maxLon` REAL, `numChanges` INTEGER NOT NULL, `commentsCount` INTEGER NOT NULL, `tagsJson` TEXT, `osmchaScore` INTEGER, `osmchaIsSuspect` INTEGER NOT NULL, `osmchaHarmful` INTEGER, `osmchaReasonsJson` TEXT, `createCount` INTEGER NOT NULL, `modifyCount` INTEGER NOT NULL, `deleteCount` INTEGER NOT NULL, `isOsmchaChecked` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bbox",
+            "columnName": "bbox",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "closedAt",
+            "columnName": "closedAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "open",
+            "columnName": "open",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "user",
+            "columnName": "user",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uid",
+            "columnName": "uid",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minLat",
+            "columnName": "minLat",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "minLon",
+            "columnName": "minLon",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "maxLat",
+            "columnName": "maxLat",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "maxLon",
+            "columnName": "maxLon",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "numChanges",
+            "columnName": "numChanges",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "commentsCount",
+            "columnName": "commentsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagsJson",
+            "columnName": "tagsJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "osmchaScore",
+            "columnName": "osmchaScore",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "osmchaIsSuspect",
+            "columnName": "osmchaIsSuspect",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "osmchaHarmful",
+            "columnName": "osmchaHarmful",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "osmchaReasonsJson",
+            "columnName": "osmchaReasonsJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createCount",
+            "columnName": "createCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modifyCount",
+            "columnName": "modifyCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleteCount",
+            "columnName": "deleteCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOsmchaChecked",
+            "columnName": "isOsmchaChecked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdated",
+            "columnName": "lastUpdated",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a2374533b2d9105dc311fe3b0ce2c683')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fef574c7a88e91c18ee50a99abe1c893')"
     ]
   }
 }

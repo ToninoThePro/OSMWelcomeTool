@@ -68,7 +68,12 @@ data class OsmChangeset(
     val maxLon: Double? = null,
     @SerialName("num_changes")
     val numChanges: Int = 0,
+    @SerialName("changes_count")
+    val changesCount: Int = 0,
     @SerialName("comments_count")
     val commentsCount: Int = 0,
     val tags: Map<String, String>? = null
-)
+) {
+    val totalChanges: Int
+        get() = maxOf(numChanges, changesCount)
+}

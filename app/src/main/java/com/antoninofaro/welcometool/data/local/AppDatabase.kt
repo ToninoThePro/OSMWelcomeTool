@@ -8,13 +8,17 @@ import com.antoninofaro.welcometool.data.entity.UserAreaActivityEntity
 import com.antoninofaro.welcometool.data.entity.UserEntity
 import com.antoninofaro.welcometool.data.local.dao.UserDao
 
+import com.antoninofaro.welcometool.data.entity.ChangesetEntity
+import com.antoninofaro.welcometool.data.local.dao.ChangesetDao
+
 @Database(
-    entities = [UserEntity::class, UserAreaActivityEntity::class],
-    version = 2,
+    entities = [UserEntity::class, UserAreaActivityEntity::class, ChangesetEntity::class],
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
+    abstract fun changesetDao(): ChangesetDao
 
     companion object {
         @Volatile

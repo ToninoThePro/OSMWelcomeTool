@@ -6,6 +6,7 @@ import com.antoninofaro.welcometool.data.model.safeApiCall
 import com.antoninofaro.welcometool.data.network.OsmChaService
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
+import timber.log.Timber
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -66,6 +67,18 @@ class OsmChaRepository @Inject constructor(
             VerifyTokenResult.Error(e.message ?: "Errore di connessione")
         } catch (e: Exception) {
             VerifyTokenResult.Error(e.message ?: "Errore sconosciuto")
+        }
+    }
+
+    suspend fun getChangesetDetail(changesetId: Long): Result<com.antoninofaro.welcometool.data.network.OsmChaChangesetDetailResponse> {
+        return safeApiCall {
+            osmChaService.getChangesetDetail(changesetId)
+        }.also { result ->
+            if (result.isError) {
+                Timber.e(result.exceptionOrNull(), "Error fetching OsmCha changeset detail for id: $changesetId")
+            } else {
+                Timber.d("Successfully fetched OsmCha changeset detail for id: $changesetId")
+            }
         }
     }
 }
