@@ -23,7 +23,8 @@ object TokenMasker {
                 ignoreCase = true
             )
         ) {
-            val token = value.removePrefix("Token ").trim()
+            val prefixEnd = "Token ".length
+            val token = value.substring(prefixEnd).trim()
             "Token ${mask(token)}"
         } else {
             value
