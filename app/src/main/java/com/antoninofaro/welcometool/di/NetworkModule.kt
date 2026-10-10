@@ -28,7 +28,6 @@ object NetworkModule {
 
     private const val OSMCHA_TIMEOUT = 120L
     private const val NOMINATIM_TIMEOUT = 30L
-    private const val OSM_API_BASE_URL = "https://api.openstreetmap.org/"
     private const val OSM_CONNECT_TIMEOUT = 30L
     private const val OSM_READ_TIMEOUT = 30L
     private const val OSM_WRITE_TIMEOUT = 30L
@@ -108,7 +107,7 @@ object NetworkModule {
     ): OsmApiService {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl(OSM_API_BASE_URL)
+            .baseUrl(BuildConfig.OSM_API_BASE_URL)
             .client(client)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
@@ -150,7 +149,7 @@ object NetworkModule {
     ): OsmChaService {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl("https://osmcha.org/api/v1/")
+            .baseUrl(BuildConfig.OSMCHA_API_BASE_URL)
             .client(client)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
@@ -165,7 +164,7 @@ object NetworkModule {
     ): NominatimApiService {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl("https://nominatim.openstreetmap.org/")
+            .baseUrl(BuildConfig.NOMINATIM_API_BASE_URL)
             .client(client)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()

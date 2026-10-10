@@ -23,6 +23,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "OSM_API_BASE_URL", "\"https://api.openstreetmap.org/\"")
+        buildConfigField("String", "OSMCHA_API_BASE_URL", "\"https://osmcha.org/api/v1/\"")
+        buildConfigField("String", "NOMINATIM_API_BASE_URL", "\"https://nominatim.openstreetmap.org/\"")
     }
 
     buildTypes {
