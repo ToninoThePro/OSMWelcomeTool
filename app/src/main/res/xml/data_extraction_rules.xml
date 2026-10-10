@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-    <cloud-backup />
-    <device-to-device-transfer />
+    <cloud-backup>
+        <exclude domain="sharedpref" path="secure_tokens.xml" />
+        <exclude domain="database" path="osm_welcome_database" />
+        <exclude domain="database" path="osm_welcome_database-wal" />
+        <exclude domain="database" path="osm_welcome_database-shm" />
+        <exclude domain="file" path="datastore" />
+    </cloud-backup>
+    <device-to-device-transfer>
+        <exclude domain="sharedpref" path="secure_tokens.xml" />
+        <exclude domain="database" path="osm_welcome_database" />
+        <exclude domain="database" path="osm_welcome_database-wal" />
+        <exclude domain="database" path="osm_welcome_database-shm" />
+        <exclude domain="file" path="datastore" />
+    </device-to-device-transfer>
 </data-extraction-rules>
-
