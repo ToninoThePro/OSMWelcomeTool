@@ -216,8 +216,12 @@ class MainViewModel @Inject constructor(
 
             changesets.reversed().forEach { latestChangesetByUid.putIfAbsent(it.uid, it) }
 
-            val currentWindowUids = changesets.map { it.uid }.distinct()
-            val uidsToSync = currentWindowUids.filterNot { seenUserIds.contains(it) }
+            val uidsToSync = mutableSetOf<Long>()
+            changesets.forEach {
+                if (!seenUserIds.contains(it.uid)) {
+                    uidsToSync.add(it.uid)
+                }
+            }
 
             if (uidsToSync.isNotEmpty()) {
                 val cachedUsersMap = userDao.getUsersByIds(uidsToSync).associateBy { it.id }
