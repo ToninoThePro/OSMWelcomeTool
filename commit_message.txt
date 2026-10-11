@@ -1,0 +1,9 @@
+🧪 [testing improvement] Add unit tests for TimeUtils.kt
+
+🎯 **What:** The `formatRelativeTime` function in `TimeUtils.kt` lacked test coverage and its internal reliance on `System.currentTimeMillis()` made it non-deterministic to test. I added `currentTimeMillis` as an optional parameter to make it a pure function and implemented comprehensive tests.
+📊 **Coverage:** The tests now cover all 4 formatting scenarios:
+  - `< 1 minute ago` (returns "now")
+  - `< 1 hour ago` (returns formatted "minAgo")
+  - `< 24 hours ago` (returns formatted "hourAgo")
+  - `> 24 hours ago` (returns fallback date format, tested deterministically with a fixed Locale)
+✨ **Result:** Increased test coverage for date/time formatting utilities, ensuring UI time representations are reliable and immune to future regressions.
