@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
                     var permissionRequestAttempted by rememberSaveable { mutableStateOf(false) }
                     LaunchedEffect(settings.isOnboardingCompleted, settings.showNotifications) {
                         if (!permissionRequestAttempted && settings.isOnboardingCompleted && settings.showNotifications) {
-                            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                                 showRationale = true
                             }
                             permissionRequestAttempted = true
@@ -176,6 +176,20 @@ fun AppNavigation(
         }
     }
 
+    LaunchedEffect(Unit) {
+        if (isOnboardingCompleted) {
+            if (deepLinkChangesetId != null) {
+                navController.navigate("changeset_detail/$deepLinkChangesetId") {
+                    launchSingleTop = true
+                }
+            } else if (deepLinkUserId != null) {
+                navController.navigate("user_detail/$deepLinkUserId") {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = startDestination) {
 
         composable("onboarding") {
@@ -189,11 +203,20 @@ fun AppNavigation(
             )
         }
 
-        composable("user_list") {
+        composable(
+            "user_list?userFilter={userFilter}",
+            arguments = listOf(androidx.navigation.navArgument("userFilter") {
+                type = androidx.navigation.NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val userFilter = backStackEntry.arguments?.getString("userFilter")?.takeIf { it.isNotBlank() }
             MainHome(
                 viewModel = viewModel,
                 changesetsViewModel = changesetsViewModel,
-                deepLinkChangesetsTab = deepLinkChangesetsTab,
+                deepLinkChangesetsTab = deepLinkChangesetsTab || userFilter != null,
+                initialUserFilter = userFilter,
                 onUserClick = { user, _ ->
                     navController.navigate("user_detail/${user.id}")
                 },
@@ -218,6 +241,12 @@ fun AppNavigation(
                     viewModel.loadOsmchaForUser(userId)
                     viewModel.refreshUser(userId, force = false)
                 }
+                
+                val recentChangesets = remember { androidx.compose.runtime.mutableStateOf<List<com.antoninofaro.welcometool.data.model.ChangesetUiModel>>(emptyList()) }
+                LaunchedEffect(userId) {
+                    recentChangesets.value = viewModel.getRecentChangesetsForUser(userId)
+                }
+                
                 UserDetailScreen(
                     user = selectedUserUiModel.user,
                     analysis = selectedUserUiModel.analysis,
@@ -227,6 +256,7 @@ fun AppNavigation(
                     osmchaLastChecked = selectedUserUiModel.osmchaLastChecked,
                     lastUpdated = selectedUserUiModel.lastUpdated,
                     isOnline = uiState.isOnline,
+                    recentChangesets = recentChangesets.value,
                     onOsmchaRefresh = { viewModel.refreshOsmchaForUser(userId) },
                     onNavigateUp = { navController.navigateUp() },
                     onToggleWelcome = {
@@ -234,6 +264,17 @@ fun AppNavigation(
                             selectedUserUiModel.user.id,
                             selectedUserUiModel.analysis.isWelcomed
                         )
+                    },
+                    onChangesetClick = { changeset ->
+                        navController.navigate("changeset_detail/${changeset.entity.id}")
+                    },
+                    onViewMoreChangesets = {
+                        navController.navigate("user_list?userFilter=${selectedUserUiModel.user.displayName}") {
+                            popUpTo("user_list?userFilter={userFilter}") { inclusive = true }
+                        }
+                    },
+                    onLoadMoreChangesets = {
+                        changesetsViewModel.fetchMoreUserChangesets(userId)
                     }
                 )
             } else {
@@ -296,6 +337,7 @@ fun MainHome(
     viewModel: MainViewModel,
     changesetsViewModel: ChangesetsViewModel,
     deepLinkChangesetsTab: Boolean = false,
+    initialUserFilter: String? = null,
     onUserClick: (com.antoninofaro.welcometool.data.model.OsmUser, com.antoninofaro.welcometool.domain.UserAnalysis) -> Unit,
     onChangesetClick: (com.antoninofaro.welcometool.data.model.ChangesetUiModel) -> Unit,
     onNavigateToSettings: () -> Unit
@@ -304,9 +346,10 @@ fun MainHome(
     val navBackStackEntry by nestedNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "mappers"
     
-    LaunchedEffect(Unit) {
+    LaunchedEffect(deepLinkChangesetsTab, initialUserFilter) {
         if (deepLinkChangesetsTab) {
-            nestedNavController.navigate("changesets") {
+            val route = if (initialUserFilter != null) "changesets?userFilter=$initialUserFilter" else "changesets"
+            nestedNavController.navigate(route) {
                 popUpTo(nestedNavController.graph.startDestinationId) { saveState = true }
                 launchSingleTop = true
                 restoreState = true
@@ -337,9 +380,9 @@ fun MainHome(
                 NavigationBarItem(
                     icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Changesets") },
                     label = { Text("Changesets") },
-                    selected = currentRoute == "changesets",
+                    selected = currentRoute.startsWith("changesets"),
                     onClick = {
-                        if (currentRoute != "changesets") {
+                        if (!currentRoute.startsWith("changesets")) {
                             nestedNavController.navigate("changesets") {
                                 popUpTo(nestedNavController.graph.startDestinationId) { saveState = true }
                                 launchSingleTop = true
@@ -360,10 +403,22 @@ fun MainHome(
                         onNavigateToSettings = onNavigateToSettings
                     )
                 }
-                composable("changesets") {
+                composable(
+                    "changesets?userFilter={userFilter}",
+                    arguments = listOf(androidx.navigation.navArgument("userFilter") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    })
+                ) { backStackEntry ->
+                    val userFilter = backStackEntry.arguments?.getString("userFilter")?.takeIf { it.isNotBlank() }
                     ChangesetListScreen(
                         viewModel = changesetsViewModel,
-                        onChangesetClick = onChangesetClick
+                        initialUserFilter = userFilter,
+                        onChangesetClick = onChangesetClick,
+                        onClearUserFilter = {
+                            backStackEntry.arguments?.remove("userFilter")
+                        }
                     )
                 }
             }

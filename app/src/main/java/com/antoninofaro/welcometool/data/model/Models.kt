@@ -29,6 +29,8 @@ data class OsmUser(
     val roles: List<String>? = null,
     val changesets: CountWrapper? = null,
     val traces: CountWrapper? = null,
+    val etag: String? = null,
+    val lastModified: String? = null
 )
 
 @Serializable
@@ -45,6 +47,12 @@ data class CountWrapper(
 data class OsmChangesetWrapper(
     @SerialName("changesets")
     val changesets: List<OsmChangeset>
+)
+
+@Serializable
+data class SingleOsmChangesetWrapper(
+    @SerialName("changeset")
+    val changeset: OsmChangeset? = null
 )
 
 @Immutable
@@ -72,7 +80,9 @@ data class OsmChangeset(
     val changesCount: Int = 0,
     @SerialName("comments_count")
     val commentsCount: Int = 0,
-    val tags: Map<String, String>? = null
+    val tags: Map<String, String>? = null,
+    val etag: String? = null,
+    val lastModified: String? = null
 ) {
     val totalChanges: Int
         get() = maxOf(numChanges, changesCount)

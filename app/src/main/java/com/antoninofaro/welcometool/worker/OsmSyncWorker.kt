@@ -110,6 +110,9 @@ class OsmSyncWorker @AssistedInject constructor(
             Result.success()
         } catch (e: CancellationException) {
             throw e
+        } catch (e: com.antoninofaro.welcometool.di.RateLimitException) {
+            Timber.w("RateLimitException in OsmSyncWorker, returning Result.retry(). Retry after: ${e.retryAfterSeconds}s")
+            Result.retry()
         } catch (e: Exception) {
             Timber.e(e, "Error during OsmSyncWorker execution")
             Timber.w("Scan metrics: result=retry(exception=%s)", e.javaClass.simpleName)
@@ -124,6 +127,7 @@ class OsmSyncWorker @AssistedInject constructor(
             timeRange = timeRange,
             limit = CHANGESET_LIMIT
         )
+        if (result.isError && result.exceptionOrNull() is com.antoninofaro.welcometool.di.RateLimitException) { throw result.exceptionOrNull() as com.antoninofaro.welcometool.di.RateLimitException }
         val list = result.getOrNull()
         if (!list.isNullOrEmpty()) {
             changesetDao.insertOrUpdateChangesets(list.map {
@@ -228,14 +232,21 @@ class OsmSyncWorker @AssistedInject constructor(
         changesetsByUid: Map<Long, OsmChangeset>,
         settings: com.antoninofaro.welcometool.data.repository.AppSettings
     ): Pair<Long, Triple<Long, String, String>>? = coroutineScope {
-        val user = when (val r = osmRepository.fetchUserDetail(uid)) {
-            is ApiResult.Success -> r.data
+        val userResult = osmRepository.fetchUserDetail(uid)
+        if (userResult.isError && userResult.exceptionOrNull() is com.antoninofaro.welcometool.di.RateLimitException) {
+            throw userResult.exceptionOrNull() as com.antoninofaro.welcometool.di.RateLimitException
+        }
+        val user = when (userResult) {
+            is ApiResult.Success -> userResult.data
             else -> return@coroutineScope null
         }
 
         val recentCs = changesetsByUid[uid]
-        val allChangesets =
-            osmRepository.fetchUserChangesets(uid, CHANGESET_LIMIT).getOrNull().orEmpty()
+        val changesetsResult = osmRepository.fetchUserChangesets(uid, CHANGESET_LIMIT)
+        if (changesetsResult.isError && changesetsResult.exceptionOrNull() is com.antoninofaro.welcometool.di.RateLimitException) {
+            throw changesetsResult.exceptionOrNull() as com.antoninofaro.welcometool.di.RateLimitException
+        }
+        val allChangesets = changesetsResult.getOrNull().orEmpty()
         val analysis = UserAnalyzer.analyze(user, allChangesets, recentCs)
 
         if (analysis.isNewcomer) {

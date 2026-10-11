@@ -1,12 +1,18 @@
 package com.antoninofaro.welcometool.data.network
 
 import com.antoninofaro.welcometool.data.model.OsmChangesetWrapper
+import com.antoninofaro.welcometool.data.model.SingleOsmChangesetWrapper
 import com.antoninofaro.welcometool.data.model.OsmUserWrapper
 import com.antoninofaro.welcometool.data.model.OsmUsersWrapper
 import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface OsmApiService {
+
+    @GET("api/0.6/changeset/{id}.json")
+    suspend fun getChangesetById(
+        @retrofit2.http.Path("id") id: Long
+    ): SingleOsmChangesetWrapper
 
     @GET("api/0.6/changesets.json")
     suspend fun getRecentChangesets(

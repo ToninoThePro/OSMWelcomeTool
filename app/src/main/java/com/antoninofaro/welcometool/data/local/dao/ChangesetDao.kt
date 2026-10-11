@@ -54,6 +54,8 @@ abstract class ChangesetDao {
         """
         SELECT * FROM changesets 
         WHERE bbox = :bbox 
+          AND (:userFilter = '' OR user = :userFilter)
+          AND (:uidFilter = 0 OR uid = :uidFilter)
           AND (:searchTerm = '' OR tagsJson LIKE '%' || :searchTerm || '%' ESCAPE '\' OR user LIKE '%' || :searchTerm || '%' ESCAPE '\' OR id LIKE '%' || :searchTerm || '%' ESCAPE '\')
           AND (:filterReviewRequested = 0 OR tagsJson LIKE '%"review_requested":"yes"%')
           AND (:filterAnomalies = 0 OR osmchaIsSuspect = 1 OR osmchaHarmful = 1)
@@ -63,11 +65,13 @@ abstract class ChangesetDao {
     )
     abstract suspend fun getChangesetsForBBoxFiltered(
         bbox: String,
-        searchTerm: String,
-        filterReviewRequested: Boolean,
-        filterAnomalies: Boolean,
-        limit: Int,
-        offset: Int
+        userFilter: String = "",
+        uidFilter: Long = 0L,
+        searchTerm: String = "",
+        filterReviewRequested: Boolean = false,
+        filterAnomalies: Boolean = false,
+        limit: Int = 100,
+        offset: Int = 0
     ): List<ChangesetEntity>
 
     @Query(

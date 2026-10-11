@@ -29,6 +29,9 @@ data class ChangesetsUiState(
     val isPaging: Boolean = false,
     val hasReachedEnd: Boolean = false,
     val searchTerm: String = "",
+    val userFilter: String = "",
+    val uidFilter: Long = 0L,
+    val isSearchingById: Boolean = false,
     val filterReviewRequested: Boolean = false,
     val filterAnomalies: Boolean = false,
     val selectedBBox: String = Constants.ITALY_BBOX,
@@ -81,11 +84,15 @@ class ChangesetsViewModel @Inject constructor(
         viewModelScope.launch {
             val bbox = _uiState.value.selectedBBox
             val term = _uiState.value.searchTerm
+            val userFilter = _uiState.value.userFilter
+            val uidFilter = _uiState.value.uidFilter
             val reviewReq = _uiState.value.filterReviewRequested
             val anomalies = _uiState.value.filterAnomalies
 
             val entities = changesetDao.getChangesetsForBBoxFiltered(
                 bbox = bbox,
+                userFilter = userFilter,
+                uidFilter = uidFilter,
                 searchTerm = term,
                 filterReviewRequested = reviewReq,
                 filterAnomalies = anomalies,
@@ -172,8 +179,62 @@ class ChangesetsViewModel @Inject constructor(
     }
 
     fun updateSearchTerm(term: String) {
-        _uiState.value = _uiState.value.copy(searchTerm = term)
+        val currentUidFilter = if (term.startsWith("uid:", ignoreCase = true) || term.startsWith("idu:", ignoreCase = true)) {
+            _uiState.value.uidFilter
+        } else {
+            0L
+        }
+        _uiState.value = _uiState.value.copy(searchTerm = term, uidFilter = currentUidFilter)
         loadLocalChangesets(true)
+    }
+
+    fun fetchUserChangesetsByUid(uid: Long) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSearchingById = true)
+            val result = osmRepository.fetchUserChangesets(uid, 100)
+            if (result is Result.Success) {
+                val bbox = _uiState.value.selectedBBox
+                val entities = result.data.map { it.toEntity(bbox) }
+                changesetDao.insertOrUpdateChangesets(entities)
+                _uiState.value = _uiState.value.copy(uidFilter = uid, isSearchingById = false)
+                loadLocalChangesets(reset = true)
+            } else {
+                _uiState.value = _uiState.value.copy(isSearchingById = false)
+            }
+        }
+    }
+
+    fun updateUserFilter(username: String?) {
+        _uiState.value = _uiState.value.copy(userFilter = username ?: "")
+        loadLocalChangesets(true)
+    }
+
+    fun searchChangesetById(id: Long, onResult: (Long?) -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSearchingById = true)
+            
+            // 1. Check local DB first
+            val local = changesetDao.getChangesetById(id)
+            if (local != null) {
+                _uiState.value = _uiState.value.copy(isSearchingById = false)
+                onResult(id)
+                return@launch
+            }
+            
+            // 2. If not in DB, fetch from API
+            val result = osmRepository.fetchChangesetById(id)
+            if (result is Result.Success) {
+                val bbox = _uiState.value.selectedBBox
+                val entity = result.data.toEntity(bbox)
+                changesetDao.insertOrUpdateChangesets(listOf(entity))
+                loadLocalChangesets(reset = true)
+                _uiState.value = _uiState.value.copy(isSearchingById = false)
+                onResult(id)
+            } else {
+                _uiState.value = _uiState.value.copy(isSearchingById = false)
+                onResult(null)
+            }
+        }
     }
 
     fun toggleFilterReviewRequested() {
@@ -190,6 +251,18 @@ class ChangesetsViewModel @Inject constructor(
         if (_uiState.value.selectedBBox != bbox) {
             _uiState.value = _uiState.value.copy(selectedBBox = bbox)
             loadLocalChangesets(true)
+        }
+    }
+
+
+    fun fetchMoreUserChangesets(uid: Long) {
+        viewModelScope.launch {
+            val result = osmRepository.fetchUserChangesets(uid, 10)
+            if (result is Result.Success) {
+                val bbox = _uiState.value.selectedBBox
+                changesetDao.insertOrUpdateChangesets(result.data.map { it.toEntity(bbox) })
+                loadLocalChangesets(reset = true)
+            }
         }
     }
 
@@ -261,7 +334,9 @@ class ChangesetsViewModel @Inject constructor(
             maxLon = maxLon,
             numChanges = totalChanges,
             commentsCount = commentsCount,
-            tagsJson = tagsJson
+            tagsJson = tagsJson,
+            etag = null,
+            lastModified = null
         )
     }
 

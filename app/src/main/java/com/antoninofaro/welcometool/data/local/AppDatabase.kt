@@ -13,7 +13,7 @@ import com.antoninofaro.welcometool.data.local.dao.ChangesetDao
 
 @Database(
     entities = [UserEntity::class, UserAreaActivityEntity::class, ChangesetEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

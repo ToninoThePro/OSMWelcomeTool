@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
  *
  * @param height The height of the fading edge.
  */
-fun Modifier.fadingEdge(height: Dp = 60.dp) = this
+fun Modifier.fadingEdge(height: Dp = 16.dp) = this
     .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
     .drawWithContent {
         drawContent()

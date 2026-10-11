@@ -99,6 +99,34 @@ class MainViewModel @Inject constructor(
             initialValue = AppSettings()
         )
 
+    suspend fun getRecentChangesetsForUser(uid: Long, limit: Int = 3): List<com.antoninofaro.welcometool.data.model.ChangesetUiModel> {
+        val entities = changesetDao.getChangesetsForBBoxFiltered(
+            bbox = _uiState.value.selectedBBox,
+            searchTerm = "",
+            filterReviewRequested = false,
+            filterAnomalies = false,
+            limit = 100, // get more to filter in memory since we filter by uid
+            offset = 0
+        ).filter { it.uid == uid }.take(limit)
+
+        return entities.map { it.toUiModel(_uiState.value.isOnline) }
+    }
+
+    private fun com.antoninofaro.welcometool.data.entity.ChangesetEntity.toUiModel(isOnline: Boolean): com.antoninofaro.welcometool.data.model.ChangesetUiModel {
+        val reasonsList = try {
+            if (!osmchaReasonsJson.isNullOrBlank()) {
+                kotlinx.serialization.json.Json.decodeFromString<List<String>>(osmchaReasonsJson)
+            } else emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        return com.antoninofaro.welcometool.data.model.ChangesetUiModel(
+            entity = this,
+            reasons = reasonsList,
+            isOnline = isOnline
+        )
+    }
+
     private val welcomedMutex = Mutex()
     private val toggleMutex = Mutex()
     private var welcomedIdsCache: Set<String>? = null
@@ -633,7 +661,9 @@ class MainViewModel @Inject constructor(
             img = imgUrl?.let { UserImage(it) },
             roles = emptyList(),
             changesets = CountWrapper(totalEdits),
-            traces = null
+            traces = null,
+            etag = etag,
+            lastModified = lastModified
         )
     }
 
@@ -746,7 +776,9 @@ class MainViewModel @Inject constructor(
             osmchaLikes = analysis.osmchaLikes,
             osmchaDislikes = analysis.osmchaDislikes,
             isWelcomed = analysis.isWelcomed,
-            imgUrl = img?.href
+            imgUrl = img?.href,
+            etag = null, // Set in repo or dao
+            lastModified = null
         )
     }
 }

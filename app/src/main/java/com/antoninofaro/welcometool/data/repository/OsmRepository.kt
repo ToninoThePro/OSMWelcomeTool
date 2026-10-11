@@ -19,6 +19,20 @@ class OsmRepository @Inject constructor(
     private val apiService: OsmApiService
 ) {
 
+    suspend fun fetchChangesetById(changesetId: Long): Result<OsmChangeset> {
+        return safeApiCall {
+            val response = apiService.getChangesetById(changesetId)
+            response.changeset
+                ?: throw Exception("Changeset $changesetId not found")
+        }.also { result ->
+            if (result.isError) {
+                Timber.e(result.exceptionOrNull(), "Error fetching changeset by id: $changesetId")
+            } else {
+                Timber.d("Successfully fetched changeset by id: $changesetId")
+            }
+        }
+    }
+
     /**
      * Fetches the most recent changesets within a specified bounding box and optional time range.
      *

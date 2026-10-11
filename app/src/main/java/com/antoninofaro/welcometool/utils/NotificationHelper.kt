@@ -31,6 +31,12 @@ class NotificationHelper @Inject constructor(
         const val NEW_USER_NOTIFICATION_ID = 2001
     }
 
+    private fun NotificationCompat.Builder.setTimeoutSafe(timeoutMs: Long) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            setTimeoutAfter(timeoutMs)
+        }
+    }
+
     fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager: NotificationManager =
@@ -126,7 +132,7 @@ class NotificationHelper @Inject constructor(
                         .setAutoCancel(true)
 
                     if (autoDismissHours > 0) {
-                        builder.setTimeoutAfter(autoDismissHours * 60 * 60 * 1000L)
+                        builder.setTimeoutSafe(autoDismissHours * 60 * 60 * 1000L)
                     }
 
                     notificationManager.notify(10000 + (cs.id % 10000).toInt(), builder.build())
@@ -172,7 +178,7 @@ class NotificationHelper @Inject constructor(
                     .setAutoCancel(true)
 
                 if (autoDismissHours > 0) {
-                    builder.setTimeoutAfter(autoDismissHours * 60 * 60 * 1000L)
+                    builder.setTimeoutSafe(autoDismissHours * 60 * 60 * 1000L)
                 }
 
                 notificationManager.notify(NOTIFICATION_ID, builder.build())
@@ -183,13 +189,15 @@ class NotificationHelper @Inject constructor(
     }
 
     fun sendNewMapperNotification(newcomers: List<Triple<Long, String, String>>, autoDismissHours: Int = 0) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Timber.w("Missing POST_NOTIFICATIONS permission. Notification not sent.")
-            return
+        if (Build.VERSION.SDK_INT >= 33) {
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Timber.w("Missing POST_NOTIFICATIONS permission. Notification not sent.")
+                return
+            }
         }
 
         val usernames = newcomers.map { it.second }
@@ -223,7 +231,7 @@ class NotificationHelper @Inject constructor(
                 .setAutoCancel(true)
 
             if (autoDismissHours > 0) {
-                builder.setTimeoutAfter(autoDismissHours * 60 * 60 * 1000L)
+                builder.setTimeoutSafe(autoDismissHours * 60 * 60 * 1000L)
             }
 
             NotificationManagerCompat.from(context)
@@ -262,7 +270,7 @@ class NotificationHelper @Inject constructor(
                 .setAutoCancel(true)
 
             if (autoDismissHours > 0) {
-                builder.setTimeoutAfter(autoDismissHours * 60 * 60 * 1000L)
+                builder.setTimeoutSafe(autoDismissHours * 60 * 60 * 1000L)
             }
 
             NotificationManagerCompat.from(context)

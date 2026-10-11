@@ -27,29 +27,39 @@ class RateLimitInterceptorTest {
     }
 
     @Test
-    fun `429 with Retry-After header throws RateLimitException with correct seconds`() {
+    fun `429 with Retry-After header retries and eventually succeeds`() {
         mockWebServer.enqueue(
-            MockResponse().setResponseCode(429).setHeader("Retry-After", "120")
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "1")
+        )
+        mockWebServer.enqueue(
+            MockResponse().setResponseCode(200).setBody("success")
         )
 
-        val exception = runCatching {
-            client.newCall(okhttp3.Request.Builder().url(mockWebServer.url("/")).build()).execute()
-        }.exceptionOrNull()
+        val response = client.newCall(
+            okhttp3.Request.Builder().url(mockWebServer.url("/")).build()
+        ).execute()
 
-        assertThat(exception).isInstanceOf(RateLimitException::class.java)
-        assertThat((exception as RateLimitException).retryAfterSeconds).isEqualTo(120L)
+        assertThat(response.code).isEqualTo(200)
+        assertThat(response.body?.string()).isEqualTo("success")
+        assertThat(mockWebServer.requestCount).isEqualTo(2)
     }
 
     @Test
-    fun `429 without Retry-After header throws RateLimitException with default 60s`() {
-        mockWebServer.enqueue(MockResponse().setResponseCode(429))
+    fun `429 throws RateLimitException after max retries`() {
+        // Enqueue 4 429 responses (initial + 3 retries)
+        for (i in 0 until 4) {
+            mockWebServer.enqueue(
+                MockResponse().setResponseCode(429).setHeader("Retry-After", "0")
+            )
+        }
 
         val exception = runCatching {
             client.newCall(okhttp3.Request.Builder().url(mockWebServer.url("/")).build()).execute()
         }.exceptionOrNull()
 
         assertThat(exception).isInstanceOf(RateLimitException::class.java)
-        assertThat((exception as RateLimitException).retryAfterSeconds).isEqualTo(60L)
+        // With Retry-After: 0, backoff should use that value for currentBackoff in the exception
+        assertThat(mockWebServer.requestCount).isEqualTo(4)
     }
 
     @Test

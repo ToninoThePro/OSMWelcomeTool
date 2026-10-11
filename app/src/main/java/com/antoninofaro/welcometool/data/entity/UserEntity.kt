@@ -24,5 +24,9 @@ data class UserEntity(
     val osmchaLastChecked: Long = 0L,
     val isWelcomed: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis(),
-    val imgUrl: String? = null
+    val imgUrl: String? = null,
+    @ColumnInfo(name = "etag")
+    val etag: String? = null,
+    @ColumnInfo(name = "last_modified")
+    val lastModified: String? = null
 )

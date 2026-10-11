@@ -83,4 +83,42 @@ class NetworkTests {
         assertThat(result.user.displayName).isEqualTo("TestUser")
         assertThat(result.user.changesets?.count).isEqualTo(100)
     }
+
+    @Test
+    fun `Kotlin Serialization parses OsmChangeset correctly by ID`() {
+        val changesetJson = """
+            {
+              "version": "0.6",
+              "changeset": {
+                  "id": 189946046,
+                  "created_at": "2024-06-25T14:30:00Z",
+                  "closed_at": "2024-06-25T14:31:00Z",
+                  "open": false,
+                  "user": "MapperName",
+                  "uid": 99999,
+                  "min_lat": 37.5,
+                  "min_lon": 15.0,
+                  "max_lat": 37.6,
+                  "max_lon": 15.1,
+                  "comments_count": 0,
+                  "changes_count": 5,
+                  "tags": {
+                    "comment": "Test changeset parsing",
+                    "created_by": "JOSM/1.5 (19096 it)"
+                  }
+              }
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setBody(changesetJson).setResponseCode(200))
+
+        val result = kotlinx.coroutines.runBlocking {
+            apiService.getChangesetById(189946046)
+        }
+
+        assertThat(result.changeset).isNotNull()
+        assertThat(result.changeset?.id).isEqualTo(189946046)
+        assertThat(result.changeset?.user).isEqualTo("MapperName")
+        assertThat(result.changeset?.tags?.get("comment")).isEqualTo("Test changeset parsing")
+    }
 }

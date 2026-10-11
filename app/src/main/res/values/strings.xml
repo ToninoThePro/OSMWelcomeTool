@@ -186,4 +186,10 @@
     <string name="onboarding_notifications_title">Notifiche</string>
     <string name="onboarding_notifications_desc">Ricevi avvisi per nuovi mappatori nella zona</string>
     <string name="sync_now_btn">Sincronizza Ora</string>
+    <string name="recent_changesets_section">Ultimi changeset</string>
+    <string name="view_more_changesets">Vedi altri changeset</string>
+    <string name="load_more_changesets">Carica altri…</string>
+    <string name="search_changeset_by_id_hint">Cerca changeset per ID</string>
+    <string name="changeset_not_found">Changeset non trovato</string>
+    <string name="filter_by_user">Filtro: @%s</string>
 </resources>

@@ -72,6 +72,8 @@ import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.OsmUser
 import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.ui.components.ProfileAvatar
+import com.antoninofaro.welcometool.ui.components.ChangesetCard
+import com.antoninofaro.welcometool.data.model.ChangesetUiModel
 import com.antoninofaro.welcometool.utils.formatRelativeTime
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
@@ -88,9 +90,13 @@ fun UserDetailScreen(
     osmchaLastChecked: Long,
     lastUpdated: Long = 0L,
     isOnline: Boolean = true,
+    recentChangesets: List<ChangesetUiModel> = emptyList(),
     onOsmchaRefresh: () -> Unit,
     onNavigateUp: () -> Unit,
-    onToggleWelcome: () -> Unit
+    onToggleWelcome: () -> Unit,
+    onChangesetClick: (ChangesetUiModel) -> Unit = {},
+    onViewMoreChangesets: () -> Unit = {},
+    onLoadMoreChangesets: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
@@ -659,6 +665,66 @@ fun UserDetailScreen(
                     onClick = { uriHandler.openUri("https://www.openstreetmap.org/user/${user.displayName}") }
                 )
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Recent Changesets
+            Text(
+                text = stringResource(R.string.recent_changesets_section).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 1.2.sp
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    recentChangesets.forEach { changeset ->
+                        ChangesetCard(
+                            uiModel = changeset,
+                            onClick = { onChangesetClick(changeset) }
+                        )
+                    }
+
+                    if (recentChangesets.size < 3) {
+                        TextButton(
+                            onClick = onLoadMoreChangesets,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.load_more_changesets))
+                        }
+                    }
+
+                    Button(
+                        onClick = onViewMoreChangesets,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Text(stringResource(R.string.view_more_changesets))
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

@@ -76,3 +76,14 @@ HTTP 429 handling and rate limiting are high-priority gaps (see `data/ROADMAP.md
 - Trace changes across UI ↔ ViewModel ↔ Repository ↔ Network.
 - Ensure UI changes follow the "Expressive" design guidelines (Rounded 24dp, Fading Edges).
 - Every new API call pattern must be reviewed for server impact — prefer cache over fetch.
+# Regole per delegare a Jules
+
+Valgono ogni volta che ti chiedo di far fare dei compiti a Jules, anche in modo informale (per esempio "fai 10 sessioni").
+
+- Non fare mai push e non chiedere PR a Jules: le modifiche restano in locale e si applicano con `jules_apply`. Il push lo faccio io.
+- Con più compiti, crea tutte le sessioni di seguito con `jules_create`, senza aspettare tra una e l'altra, fino al limite del piano (controllalo con `jules_limits`). I compiti in eccesso restano in coda e li lanci man mano che si libera uno slot.
+- Non aspettare mai una sola sessione. Dopo aver creato le sessioni usa `jules_wait`: controlla tutte le sessioni aperte e torna appena una ha bisogno di te. Gestisci subito quella (piano: approva con `jules_approve` o correggi con `jules_send`; domanda: rispondi o chiedimelo; completata: `jules_changes` e valutazione), poi richiama `jules_wait`. Se scade senza novità, richiamalo: è normale.
+- Dopo un riavvio di OpenCode usa prima `jules_status` per riprendere a seguire le sessioni ancora attive, senza crearne di doppie.
+- Valuta un risultato alla volta, con riassunti brevi invece di diff interi. Massimo 3 giri correttivi per sessione.
+- Applica in locale solo dopo il mio ok, una sessione alla volta, con `jules_apply`.
+- Se due compiti toccano gli stessi file o uno dipende dall'altro, dimmelo prima di lanciarli.

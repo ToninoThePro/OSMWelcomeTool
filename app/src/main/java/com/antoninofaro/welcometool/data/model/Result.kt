@@ -33,16 +33,29 @@ sealed class Result<T> {
 }
 
 /**
- * Extension function per eseguire un blocco in sicurezza e wrappare il risultato
+ * Extension function per eseguire un blocco in sicurezza e wrappare il risultato.
+ * Include logica di retry limitata in caso di RateLimitException per fare da safety net,
+ * anche se l'interceptor lo gestisce già.
  */
 suspend inline fun <T> safeApiCall(crossinline apiCall: suspend () -> T): Result<T> {
-    return try {
-        Result.Success(apiCall())
-    } catch (e: kotlinx.coroutines.CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        @Suppress("UNCHECKED_CAST")
-        Result.Error(e) as Result<T>
+    var currentAttempt = 0
+    val maxAttempts = 2
+
+    while (true) {
+        try {
+            return Result.Success(apiCall())
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (e is com.antoninofaro.welcometool.di.RateLimitException && currentAttempt < maxAttempts) {
+                currentAttempt++
+                Timber.w("RateLimitException in safeApiCall, retry %d/%d after %ds", currentAttempt, maxAttempts, e.retryAfterSeconds)
+                kotlinx.coroutines.delay(e.retryAfterSeconds * 1000L)
+            } else {
+                @Suppress("UNCHECKED_CAST")
+                return Result.Error(e) as Result<T>
+            }
+        }
     }
 }
 

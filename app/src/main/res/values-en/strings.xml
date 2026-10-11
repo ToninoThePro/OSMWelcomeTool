@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="notification_auto_dismiss_title">Scadenza notifiche</string>
+    <string name="notification_auto_dismiss_never">Mai</string>
+    <string name="notification_auto_dismiss_hours">%d ore</string>
+    <string name="notification_auto_dismiss_hour">1 ora</string>
+    <string name="individual_changeset_notif_title">Notifica individuale per changeset</string>
+    <string name="recent_changesets_section">Recent changesets</string>
+    <string name="view_more_changesets">View more changesets</string>
+    <string name="load_more_changesets">Load more…</string>
+    <string name="search_changeset_by_id_hint">Search changeset by ID</string>
+    <string name="changeset_not_found">Changeset not found</string>
+    <string name="filter_by_user">Filter: @%s</string>
+    <string name="notif_individual_changeset_text">%s ha modificato: %s</string>
+    <string name="notif_individual_changeset_title">Nuovo changeset #%d</string>
+    <string name="individual_changeset_notif_desc">Ricevi una notifica separata per ogni changeset invece di una notifica raggruppata</string>
+    
     <string name="add_area_desc">Add area</string>
     <string name="already_welcomed_btn">ALREADY WELCOMED</string>
     <string name="app_name">WelcomeTool</string>

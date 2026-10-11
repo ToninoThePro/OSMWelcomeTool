@@ -1,6 +1,7 @@
 package com.antoninofaro.welcometool.worker
 
 import android.content.Context
+import com.antoninofaro.welcometool.data.local.dao.ChangesetDao
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.AppSettings
@@ -39,6 +40,8 @@ class OsmSyncWorkerTest {
     private lateinit var notificationHelper: NotificationHelper
     @Mock
     private lateinit var notifiedUserStorage: NotifiedUserStorage
+    @Mock
+    private lateinit var changesetDao: ChangesetDao
 
     private lateinit var settingsFlow: MutableStateFlow<AppSettings>
 
@@ -244,7 +247,8 @@ class OsmSyncWorkerTest {
             osmRepository = osmRepository,
             settingsRepository = settingsRepository,
             notificationHelper = notificationHelper,
-            notifiedUserStorage = notifiedUserStorage
+            notifiedUserStorage = notifiedUserStorage,
+            changesetDao = changesetDao
         )
         return worker.doWork()
     }

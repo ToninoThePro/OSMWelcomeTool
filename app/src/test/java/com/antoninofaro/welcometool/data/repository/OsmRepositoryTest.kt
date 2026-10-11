@@ -2,6 +2,7 @@ package com.antoninofaro.welcometool.data.repository
 
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.OsmChangesetWrapper
+import com.antoninofaro.welcometool.data.model.SingleOsmChangesetWrapper
 import com.antoninofaro.welcometool.data.model.OsmUser
 import com.antoninofaro.welcometool.data.model.OsmUserWrapper
 import com.antoninofaro.welcometool.data.model.Result
@@ -192,6 +193,35 @@ class OsmRepositoryTest {
         assertThat(result).isInstanceOf(Result.Success::class.java)
         assertThat(result.getOrNull()?.displayName).isEqualTo(username)
         assertThat(result.getOrNull()?.id).isEqualTo(123L)
+    }
+
+    @Test
+    fun `fetchChangesetById returns success with changeset`() = runTest {
+        // Given
+        val mockChangeset = createMockChangeset(12345L, "2026-02-21T10:00:00Z")
+        val wrapper = SingleOsmChangesetWrapper(mockChangeset)
+        `when`(apiService.getChangesetById(12345L)).thenReturn(wrapper)
+
+        // When
+        val result = repository.fetchChangesetById(12345L)
+
+        // Then
+        assertThat(result).isInstanceOf(Result.Success::class.java)
+        assertThat(result.getOrNull()?.id).isEqualTo(12345L)
+    }
+
+    @Test
+    fun `fetchChangesetById returns error when changeset not found`() = runTest {
+        // Given
+        val wrapper = SingleOsmChangesetWrapper(null)
+        `when`(apiService.getChangesetById(12345L)).thenReturn(wrapper)
+
+        // When
+        val result = repository.fetchChangesetById(12345L)
+
+        // Then
+        assertThat(result).isInstanceOf(Result.Error::class.java)
+        assertThat(result.exceptionOrNull()?.message).contains("not found")
     }
 
     @Test
