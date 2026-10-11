@@ -172,7 +172,7 @@ class OsmSyncWorker @AssistedInject constructor(
 
             if (lastKnownId != 0L && settings.showNewChangesetNotifications && newChangesets.isNotEmpty()) {
                 notificationHelper.createNotificationChannel()
-                notificationHelper.sendNewChangesetsNotification(newChangesets)
+                notificationHelper.sendNewChangesetsNotification(newChangesets, settings.individualChangesetNotifications, settings.notificationAutoDismissHours)
             }
 
             val newest = changesets.maxByOrNull { it.createdAt } ?: return
@@ -209,7 +209,7 @@ class OsmSyncWorker @AssistedInject constructor(
                 }
                 .awaitAll()
                 .filterNotNull()
-                .fold(LinkedHashSet<Long>() to mutableListOf<Pair<String, String>>()) { (ids, names), result ->
+                .fold(LinkedHashSet<Long>() to mutableListOf<Triple<Long, String, String>>()) { (ids, names), result ->
                     ids.add(result.first)
                     names.add(result.second)
                     ids to names
@@ -217,7 +217,7 @@ class OsmSyncWorker @AssistedInject constructor(
         }
 
         if (newcomers.isNotEmpty()) {
-            notificationHelper.sendNewMapperNotification(newcomers)
+            notificationHelper.sendNewMapperNotification(newcomers, settings.notificationAutoDismissHours)
         }
 
         notifiedUserStorage.markAsNotifiedBatch(newlyNotified)
@@ -227,7 +227,7 @@ class OsmSyncWorker @AssistedInject constructor(
         uid: Long,
         changesetsByUid: Map<Long, OsmChangeset>,
         settings: com.antoninofaro.welcometool.data.repository.AppSettings
-    ): Pair<Long, Pair<String, String>>? = coroutineScope {
+    ): Pair<Long, Triple<Long, String, String>>? = coroutineScope {
         val user = when (val r = osmRepository.fetchUserDetail(uid)) {
             is ApiResult.Success -> r.data
             else -> return@coroutineScope null
@@ -240,7 +240,7 @@ class OsmSyncWorker @AssistedInject constructor(
 
         if (analysis.isNewcomer) {
             Timber.d("New mapper detected: ${user.displayName}")
-            uid to (user.displayName to settings.defaultAreaName)
+            uid to Triple(uid, user.displayName, settings.defaultAreaName)
         } else {
             null
         }

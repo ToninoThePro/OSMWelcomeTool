@@ -206,7 +206,8 @@ class OsmSyncWorkerTest {
         settingsFlow.value = AppSettings(
             lastKnownChangesetDate = "2026-06-10T00:00:00Z",
             lastKnownChangesetId = 50L,
-            showNewChangesetNotifications = true
+            showNewChangesetNotifications = true,
+            individualChangesetNotifications = true
         )
         val batch = listOf(cs(200, "2026-06-20T00:00:00Z"))
         whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
@@ -215,7 +216,7 @@ class OsmSyncWorkerTest {
         doWorkSync()
 
         verify(notificationHelper).createNotificationChannel()
-        verify(notificationHelper).sendNewChangesetsNotification(any())
+        verify(notificationHelper).sendNewChangesetsNotification(any(), org.mockito.kotlin.eq(true), org.mockito.kotlin.eq(0))
     }
 
     @Test
@@ -232,7 +233,7 @@ class OsmSyncWorkerTest {
         doWorkSync()
 
         verify(notificationHelper, never()).createNotificationChannel()
-        verify(notificationHelper, never()).sendNewChangesetsNotification(any())
+        verify(notificationHelper, never()).sendNewChangesetsNotification(any(), any(), any())
     }
 
     private suspend fun doWorkSync(): androidx.work.ListenableWorker.Result {

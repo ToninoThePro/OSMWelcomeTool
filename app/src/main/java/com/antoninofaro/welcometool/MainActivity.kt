@@ -60,6 +60,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val deepLinkChangesetId = intent?.getStringExtra("DEEP_LINK_CHANGESET_ID")
+        val deepLinkChangesetsTab = intent?.getBooleanExtra("DEEP_LINK_CHANGESETS_TAB", false) ?: false
+        val deepLinkUserId = intent?.getStringExtra("DEEP_LINK_USER_ID")
 
         setContent {
             val context = LocalContext.current
@@ -127,7 +131,15 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     if (settings.isLoaded) {
-                    AppNavigation(viewModel, settingsViewModel, changesetsViewModel, settings.isOnboardingCompleted)
+                    AppNavigation(
+                        viewModel,
+                        settingsViewModel,
+                        changesetsViewModel,
+                        settings.isOnboardingCompleted,
+                        deepLinkChangesetId,
+                        deepLinkChangesetsTab,
+                        deepLinkUserId
+                    )
                 }
                 }
             }
@@ -140,12 +152,29 @@ fun AppNavigation(
     viewModel: MainViewModel,
     settingsViewModel: SettingsViewModel,
     changesetsViewModel: ChangesetsViewModel,
-    isOnboardingCompleted: Boolean
+    isOnboardingCompleted: Boolean,
+    deepLinkChangesetId: String?,
+    deepLinkChangesetsTab: Boolean,
+    deepLinkUserId: String?
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
 
     val startDestination = if (isOnboardingCompleted) "user_list" else "onboarding"
+
+    LaunchedEffect(Unit) {
+        if (isOnboardingCompleted) {
+            if (deepLinkChangesetId != null) {
+                navController.navigate("changeset_detail/$deepLinkChangesetId") {
+                    launchSingleTop = true
+                }
+            } else if (deepLinkUserId != null) {
+                navController.navigate("user_detail/$deepLinkUserId") {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
 
@@ -164,6 +193,7 @@ fun AppNavigation(
             MainHome(
                 viewModel = viewModel,
                 changesetsViewModel = changesetsViewModel,
+                deepLinkChangesetsTab = deepLinkChangesetsTab,
                 onUserClick = { user, _ ->
                     navController.navigate("user_detail/${user.id}")
                 },
@@ -265,6 +295,7 @@ fun AppNavigation(
 fun MainHome(
     viewModel: MainViewModel,
     changesetsViewModel: ChangesetsViewModel,
+    deepLinkChangesetsTab: Boolean = false,
     onUserClick: (com.antoninofaro.welcometool.data.model.OsmUser, com.antoninofaro.welcometool.domain.UserAnalysis) -> Unit,
     onChangesetClick: (com.antoninofaro.welcometool.data.model.ChangesetUiModel) -> Unit,
     onNavigateToSettings: () -> Unit
@@ -272,6 +303,16 @@ fun MainHome(
     val nestedNavController = rememberNavController()
     val navBackStackEntry by nestedNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "mappers"
+    
+    LaunchedEffect(Unit) {
+        if (deepLinkChangesetsTab) {
+            nestedNavController.navigate("changesets") {
+                popUpTo(nestedNavController.graph.startDestinationId) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     androidx.compose.material3.Scaffold(
         bottomBar = {

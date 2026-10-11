@@ -68,6 +68,14 @@
     <string name="monitoring_areas_section">AREE DI CONTROLLO</string>
     <string name="new_changesets_notif_desc">Ricevi notifiche per nuovi changeset nell\'area monitorata (consigliato con auto-aggiornamento)</string>
     <string name="new_changesets_notif_title">Nuovi changeset</string>
+    <string name="individual_changeset_notif_title">Notifica individuale per changeset</string>
+    <string name="individual_changeset_notif_desc">Ricevi una notifica separata per ogni changeset invece di una notifica raggruppata</string>
+    <string name="notif_individual_changeset_title">Nuovo changeset #%d</string>
+    <string name="notif_individual_changeset_text">%s ha modificato: %s</string>
+    <string name="notification_auto_dismiss_title">Scadenza notifiche</string>
+    <string name="notification_auto_dismiss_never">Mai</string>
+    <string name="notification_auto_dismiss_hours">%d ore</string>
+    <string name="notification_auto_dismiss_hour">1 ora</string>
     <string name="new_mappers_notif_desc">Ricevi notifiche quando viene rilevato un nuovo mappatore</string>
     <string name="new_mappers_notif_title">Nuovi mappatori</string>
     <string name="no_comment_placeholder">(nessun commento)</string>

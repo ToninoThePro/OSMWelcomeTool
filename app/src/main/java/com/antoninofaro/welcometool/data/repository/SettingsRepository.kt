@@ -30,6 +30,8 @@ data class AppSettings(
     val defaultAreaName: String = Constants.DEFAULT_AREA_NAME,
     val showNotifications: Boolean = false,
     val showNewChangesetNotifications: Boolean = false,
+    val individualChangesetNotifications: Boolean = false,
+    val notificationAutoDismissHours: Int = 0,
     val minChangesetsFilter: Int = 0,
     val cacheEnabled: Boolean = true,
     val osmchaToken: String = "",
@@ -75,6 +77,10 @@ class SettingsRepository @Inject constructor(
         private val SHOW_NOTIFICATIONS = booleanPreferencesKey("show_notifications")
         private val SHOW_NEW_CHANGESET_NOTIFICATIONS =
             booleanPreferencesKey("show_new_changeset_notifications")
+        private val INDIVIDUAL_CHANGESET_NOTIFICATIONS =
+            booleanPreferencesKey("individual_changeset_notifications")
+        private val NOTIFICATION_AUTO_DISMISS_HOURS =
+            intPreferencesKey("notification_auto_dismiss_hours")
         private val MIN_CHANGESETS_FILTER = intPreferencesKey("min_changesets_filter")
         private val CACHE_ENABLED = booleanPreferencesKey("cache_enabled")
 
@@ -100,6 +106,8 @@ class SettingsRepository @Inject constructor(
             defaultAreaName = preferences[DEFAULT_AREA_NAME] ?: Constants.DEFAULT_AREA_NAME,
             showNotifications = preferences[SHOW_NOTIFICATIONS] ?: false,
             showNewChangesetNotifications = preferences[SHOW_NEW_CHANGESET_NOTIFICATIONS] ?: false,
+            individualChangesetNotifications = preferences[INDIVIDUAL_CHANGESET_NOTIFICATIONS] ?: false,
+            notificationAutoDismissHours = preferences[NOTIFICATION_AUTO_DISMISS_HOURS] ?: 0,
             minChangesetsFilter = preferences[MIN_CHANGESETS_FILTER] ?: 0,
             cacheEnabled = cacheEnabled,
             osmchaToken = cachedOsmchaToken,
@@ -183,6 +191,12 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateShowNewChangesetNotifications(enabled: Boolean) =
         updatePreference(SHOW_NEW_CHANGESET_NOTIFICATIONS, enabled)
+
+    suspend fun updateIndividualChangesetNotifications(enabled: Boolean) =
+        updatePreference(INDIVIDUAL_CHANGESET_NOTIFICATIONS, enabled)
+
+    suspend fun updateNotificationAutoDismissHours(hours: Int) =
+        updatePreference(NOTIFICATION_AUTO_DISMISS_HOURS, hours)
 
     suspend fun updateMinChangesetsFilter(min: Int) = updatePreference(MIN_CHANGESETS_FILTER, min)
 

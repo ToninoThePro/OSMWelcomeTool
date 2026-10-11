@@ -166,6 +166,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateIndividualChangesetNotifications(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateIndividualChangesetNotifications(enabled)
+        }
+    }
+
+    fun updateNotificationAutoDismissHours(hours: Int) {
+        viewModelScope.launch {
+            settingsRepository.updateNotificationAutoDismissHours(hours)
+        }
+    }
+
     fun updateMinChangesetsFilter(min: Int) {
         viewModelScope.launch {
             settingsRepository.updateMinChangesetsFilter(min)

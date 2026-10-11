@@ -159,4 +159,18 @@ class SettingsViewModelTest {
             .isInstanceOf(TokenVerificationState.Idle::class.java)
         verify(settingsRepository).clearOsmchaToken()
     }
+
+    @Test
+    fun `updateIndividualChangesetNotifications calls repository`() = runTest {
+        viewModel.updateIndividualChangesetNotifications(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+        verify(settingsRepository).updateIndividualChangesetNotifications(true)
+    }
+
+    @Test
+    fun `updateNotificationAutoDismissHours calls repository`() = runTest {
+        viewModel.updateNotificationAutoDismissHours(12)
+        testDispatcher.scheduler.advanceUntilIdle()
+        verify(settingsRepository).updateNotificationAutoDismissHours(12)
+    }
 }

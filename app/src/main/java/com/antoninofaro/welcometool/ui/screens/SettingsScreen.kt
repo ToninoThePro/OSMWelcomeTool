@@ -375,6 +375,52 @@ private fun SettingsScreenContent(
                         viewModel.updateShowNewChangesetNotifications(enabled)
                     }
                 )
+                
+                AnimatedVisibility(visible = settings.showNewChangesetNotifications) {
+                    Column {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SettingsToggleItem(
+                            icon = Icons.Default.Notifications,
+                            title = stringResource(R.string.individual_changeset_notif_title),
+                            description = stringResource(R.string.individual_changeset_notif_desc),
+                            checked = settings.individualChangesetNotifications,
+                            onCheckedChange = { enabled ->
+                                viewModel.updateIndividualChangesetNotifications(enabled)
+                            }
+                        )
+                    }
+                }
+
+                if (settings.showNotifications || settings.showNewChangesetNotifications) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.notification_auto_dismiss_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    
+                    val options = listOf(0, 1, 6, 12, 24, 48)
+                    androidx.compose.foundation.lazy.LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(options.size) { index ->
+                            val hours = options[index]
+                            val label = when (hours) {
+                                0 -> stringResource(R.string.notification_auto_dismiss_never)
+                                1 -> stringResource(R.string.notification_auto_dismiss_hour)
+                                else -> stringResource(R.string.notification_auto_dismiss_hours, hours)
+                            }
+                            FilterChip(
+                                selected = settings.notificationAutoDismissHours == hours,
+                                onClick = { viewModel.updateNotificationAutoDismissHours(hours) },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                }
             }
 
             // DEBUG INFO
