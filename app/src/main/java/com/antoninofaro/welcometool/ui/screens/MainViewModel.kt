@@ -278,7 +278,7 @@ class MainViewModel @Inject constructor(
             }
 
             if (uidsToSync.isNotEmpty()) {
-                val cacheEnabled = settings.value.cacheEnabled
+                val cacheEnabled = settings.value.cacheEnabledOsmApi
                 val cachedUsersMap = if (cacheEnabled) userDao.getUsersByIds(uidsToSync).associateBy { it.id } else emptyMap()
 
                 uidsToSync.forEach { uid ->
@@ -720,7 +720,7 @@ class MainViewModel @Inject constructor(
 
     fun refreshUser(userId: Long, force: Boolean = false) {
         viewModelScope.launch {
-            val cacheEnabled = settings.value.cacheEnabled
+            val cacheEnabled = settings.value.cacheEnabledOsmApi
             val cachedUser = if (cacheEnabled) userDao.getUserById(userId) else null
 
             // Auto-refresh logic: only if forced OR (not stale according to 24h threshold)

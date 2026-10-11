@@ -192,4 +192,8 @@
     <string name="search_changeset_by_id_hint">Cerca changeset per ID</string>
     <string name="changeset_not_found">Changeset non trovato</string>
     <string name="filter_by_user">Filtro: @%s</string>
+    <string name="cache_category_osm_api">OSM API</string>
+    <string name="cache_category_osmcha">OSMCha</string>
+    <string name="cache_category_nominatim">Nominatim</string>
+    <string name="cache_category_avatar">Avatar (Coil)</string>
 </resources>

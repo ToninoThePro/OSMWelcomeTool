@@ -43,6 +43,10 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Api
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -798,12 +802,46 @@ private fun SettingsScreenContent(
                 isExpanded = "cache_info" in expandedSections,
                 onToggle = { expandedSections = expandedSections.toggle("cache_info") }
             ) {
+                val allCacheEnabled = settings.cacheEnabledOsmApi && settings.cacheEnabledOsmCha && settings.cacheEnabledNominatim && settings.cacheEnabledAvatar
+
                 SettingsToggleItem(
                     icon = Icons.Default.Storage,
                     title = stringResource(R.string.cache_title),
                     description = stringResource(R.string.cache_desc),
-                    checked = settings.cacheEnabled,
+                    checked = allCacheEnabled,
                     onCheckedChange = viewModel::updateCacheEnabled
+                )
+                
+                SettingsToggleItem(
+                    icon = Icons.Default.Api,
+                    title = stringResource(R.string.cache_category_osm_api),
+                    description = "",
+                    checked = settings.cacheEnabledOsmApi,
+                    onCheckedChange = { viewModel.updateCacheCategoryEnabled("osm_api", it) }
+                )
+                
+                SettingsToggleItem(
+                    icon = Icons.Default.Chat,
+                    title = stringResource(R.string.cache_category_osmcha),
+                    description = "",
+                    checked = settings.cacheEnabledOsmCha,
+                    onCheckedChange = { viewModel.updateCacheCategoryEnabled("osmcha", it) }
+                )
+
+                SettingsToggleItem(
+                    icon = Icons.Default.Map,
+                    title = stringResource(R.string.cache_category_nominatim),
+                    description = "",
+                    checked = settings.cacheEnabledNominatim,
+                    onCheckedChange = { viewModel.updateCacheCategoryEnabled("nominatim", it) }
+                )
+
+                SettingsToggleItem(
+                    icon = Icons.Default.Image,
+                    title = stringResource(R.string.cache_category_avatar),
+                    description = "",
+                    checked = settings.cacheEnabledAvatar,
+                    onCheckedChange = { viewModel.updateCacheCategoryEnabled("avatar", it) }
                 )
 
                 HorizontalDivider(

@@ -17,3 +17,15 @@ annotation class OsmChaClient
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class NominatimClient
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class OsmCache
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class OsmChaCache
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class NominatimCache

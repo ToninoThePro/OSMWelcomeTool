@@ -6,10 +6,12 @@ import androidx.work.Configuration
 import com.antoninofaro.welcometool.utils.NotificationHelper
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import javax.inject.Inject
 
 @HiltAndroidApp
-class WelcomeToolApplication : Application(), Configuration.Provider {
+class WelcomeToolApplication : Application(), Configuration.Provider, SingletonImageLoader.Factory {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -17,10 +19,17 @@ class WelcomeToolApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var notificationHelper: NotificationHelper
 
+    @Inject
+    lateinit var imageLoader: ImageLoader
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun newImageLoader(context: android.content.Context): ImageLoader {
+        return imageLoader
+    }
 
     override fun onCreate() {
         super.onCreate()

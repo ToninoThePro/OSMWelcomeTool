@@ -33,7 +33,10 @@ data class AppSettings(
     val individualChangesetNotifications: Boolean = false,
     val notificationAutoDismissHours: Int = 0,
     val minChangesetsFilter: Int = 0,
-    val cacheEnabled: Boolean = true,
+    val cacheEnabledOsmApi: Boolean = true,
+    val cacheEnabledOsmCha: Boolean = true,
+    val cacheEnabledNominatim: Boolean = true,
+    val cacheEnabledAvatar: Boolean = true,
     val osmchaToken: String = "",
     val verifiedOsmchaUsername: String = "",
     val osmchaChangesetsLimit: Int = 100,
@@ -63,9 +66,17 @@ class SettingsRepository @Inject constructor(
 ) {
     private val dataStore = context.dataStore
     private var cachedOsmchaToken: String = secureTokenStorage.getOsmchaToken()
-    private var cachedCacheEnabled: Boolean = true
+    private var cachedCacheEnabledOsmApi: Boolean = true
+    private var cachedCacheEnabledOsmCha: Boolean = true
+    private var cachedCacheEnabledNominatim: Boolean = true
+    private var cachedCacheEnabledAvatar: Boolean = true
 
-    fun isCacheEnabledOnce(): Boolean = cachedCacheEnabled
+    fun isCacheEnabledOnce(): Boolean = cachedCacheEnabledOsmApi || cachedCacheEnabledOsmCha || cachedCacheEnabledNominatim
+
+    fun isOsmApiCacheEnabledOnce(): Boolean = cachedCacheEnabledOsmApi
+    fun isOsmChaCacheEnabledOnce(): Boolean = cachedCacheEnabledOsmCha
+    fun isNominatimCacheEnabledOnce(): Boolean = cachedCacheEnabledNominatim
+    fun isAvatarCacheEnabledOnce(): Boolean = cachedCacheEnabledAvatar
 
     companion object {
         private val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -82,7 +93,11 @@ class SettingsRepository @Inject constructor(
         private val NOTIFICATION_AUTO_DISMISS_HOURS =
             intPreferencesKey("notification_auto_dismiss_hours")
         private val MIN_CHANGESETS_FILTER = intPreferencesKey("min_changesets_filter")
-        private val CACHE_ENABLED = booleanPreferencesKey("cache_enabled")
+        private val CACHE_ENABLED = booleanPreferencesKey("cache_enabled") // legacy
+        private val CACHE_ENABLED_OSM_API = booleanPreferencesKey("cache_enabled_osm_api")
+        private val CACHE_ENABLED_OSMCHA = booleanPreferencesKey("cache_enabled_osmcha")
+        private val CACHE_ENABLED_NOMINATIM = booleanPreferencesKey("cache_enabled_nominatim")
+        private val CACHE_ENABLED_AVATAR = booleanPreferencesKey("cache_enabled_avatar")
 
         private val VERIFIED_OSMCHA_USERNAME = stringPreferencesKey("verified_osmcha_username")
 
@@ -95,8 +110,19 @@ class SettingsRepository @Inject constructor(
     }
 
     val settingsFlow: Flow<AppSettings> = dataStore.data.map { preferences ->
-        val cacheEnabled = preferences[CACHE_ENABLED] ?: true
-        cachedCacheEnabled = cacheEnabled
+        // Legacy migration
+        val legacyCacheEnabled = preferences[CACHE_ENABLED]
+        
+        val cacheOsmApi = preferences[CACHE_ENABLED_OSM_API] ?: legacyCacheEnabled ?: true
+        val cacheOsmCha = preferences[CACHE_ENABLED_OSMCHA] ?: legacyCacheEnabled ?: true
+        val cacheNominatim = preferences[CACHE_ENABLED_NOMINATIM] ?: legacyCacheEnabled ?: true
+        val cacheAvatar = preferences[CACHE_ENABLED_AVATAR] ?: legacyCacheEnabled ?: true
+
+        cachedCacheEnabledOsmApi = cacheOsmApi
+        cachedCacheEnabledOsmCha = cacheOsmCha
+        cachedCacheEnabledNominatim = cacheNominatim
+        cachedCacheEnabledAvatar = cacheAvatar
+
         AppSettings(
             themeMode = preferences[THEME_MODE] ?: "system",
             dynamicColor = preferences[DYNAMIC_COLOR] ?: false,
@@ -109,7 +135,10 @@ class SettingsRepository @Inject constructor(
             individualChangesetNotifications = preferences[INDIVIDUAL_CHANGESET_NOTIFICATIONS] ?: false,
             notificationAutoDismissHours = preferences[NOTIFICATION_AUTO_DISMISS_HOURS] ?: 0,
             minChangesetsFilter = preferences[MIN_CHANGESETS_FILTER] ?: 0,
-            cacheEnabled = cacheEnabled,
+            cacheEnabledOsmApi = cacheOsmApi,
+            cacheEnabledOsmCha = cacheOsmCha,
+            cacheEnabledNominatim = cacheNominatim,
+            cacheEnabledAvatar = cacheAvatar,
             osmchaToken = cachedOsmchaToken,
             verifiedOsmchaUsername = preferences[VERIFIED_OSMCHA_USERNAME] ?: "",
             osmchaChangesetsLimit = preferences[OSMCHA_CHANGESETS_LIMIT] ?: 100,
@@ -200,9 +229,52 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateMinChangesetsFilter(min: Int) = updatePreference(MIN_CHANGESETS_FILTER, min)
 
+    suspend fun updateCacheCategoryEnabled(categoryId: String, enabled: Boolean) {
+        dataStore.edit { preferences ->
+            // Materialize legacy flag into new flags before deleting it
+            if (preferences.contains(CACHE_ENABLED)) {
+                val legacy = preferences[CACHE_ENABLED] ?: true
+                if (!preferences.contains(CACHE_ENABLED_OSM_API)) preferences[CACHE_ENABLED_OSM_API] = legacy
+                if (!preferences.contains(CACHE_ENABLED_OSMCHA)) preferences[CACHE_ENABLED_OSMCHA] = legacy
+                if (!preferences.contains(CACHE_ENABLED_NOMINATIM)) preferences[CACHE_ENABLED_NOMINATIM] = legacy
+                if (!preferences.contains(CACHE_ENABLED_AVATAR)) preferences[CACHE_ENABLED_AVATAR] = legacy
+                preferences.remove(CACHE_ENABLED)
+            }
+
+            when (categoryId) {
+                "osm_api" -> {
+                    preferences[CACHE_ENABLED_OSM_API] = enabled
+                    cachedCacheEnabledOsmApi = enabled
+                }
+                "osmcha" -> {
+                    preferences[CACHE_ENABLED_OSMCHA] = enabled
+                    cachedCacheEnabledOsmCha = enabled
+                }
+                "nominatim" -> {
+                    preferences[CACHE_ENABLED_NOMINATIM] = enabled
+                    cachedCacheEnabledNominatim = enabled
+                }
+                "avatar" -> {
+                    preferences[CACHE_ENABLED_AVATAR] = enabled
+                    cachedCacheEnabledAvatar = enabled
+                }
+            }
+        }
+    }
+
+    // Keep this for backwards compatibility if still called somewhere, mapping to all
     suspend fun updateCacheEnabled(enabled: Boolean) {
-        cachedCacheEnabled = enabled
-        updatePreference(CACHE_ENABLED, enabled)
+        dataStore.edit { preferences ->
+            preferences[CACHE_ENABLED_OSM_API] = enabled
+            preferences[CACHE_ENABLED_OSMCHA] = enabled
+            preferences[CACHE_ENABLED_NOMINATIM] = enabled
+            preferences[CACHE_ENABLED_AVATAR] = enabled
+            preferences.remove(CACHE_ENABLED)
+        }
+        cachedCacheEnabledOsmApi = enabled
+        cachedCacheEnabledOsmCha = enabled
+        cachedCacheEnabledNominatim = enabled
+        cachedCacheEnabledAvatar = enabled
     }
 
     suspend fun updateOsmchaToken(token: String) {

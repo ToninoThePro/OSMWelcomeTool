@@ -32,7 +32,6 @@ object NetworkModule {
     private const val OSM_CONNECT_TIMEOUT = 30L
     private const val OSM_READ_TIMEOUT = 30L
     private const val OSM_WRITE_TIMEOUT = 30L
-    private const val CACHE_SIZE = 50L * 1024 * 1024 // 50 MB
 
     @Provides
     @Singleton
@@ -46,11 +45,7 @@ object NetworkModule {
     @Provides
     @Singleton
     @BaseClient
-    fun provideBaseOkHttpClient(
-        @dagger.hilt.android.qualifiers.ApplicationContext context: android.content.Context
-    ): OkHttpClient {
-        val cache = Cache(File(context.cacheDir, "http_cache"), CACHE_SIZE)
-        
+    fun provideBaseOkHttpClient(): OkHttpClient {
         val certificatePinner = CertificatePinner.Builder()
             .add("api.openstreetmap.org", "sha256/LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=")
             .add("api.openstreetmap.org", "sha256/fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=")
@@ -66,7 +61,6 @@ object NetworkModule {
             .readTimeout(OSM_READ_TIMEOUT, TimeUnit.SECONDS)
             .writeTimeout(OSM_WRITE_TIMEOUT, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
-            .cache(cache)
             .certificatePinner(certificatePinner)
             .addInterceptor(RateLimitInterceptor())
             .addInterceptor { chain ->
@@ -106,9 +100,11 @@ object NetworkModule {
     @OsmClient
     fun provideOsmOkHttpClient(
         @BaseClient baseClient: OkHttpClient,
-        settingsRepository: SettingsRepository
+        settingsRepository: SettingsRepository,
+        @OsmCache cache: Cache
     ): OkHttpClient {
         return baseClient.newBuilder()
+            .cache(cache)
             .addNetworkInterceptor(OsmCacheControlInterceptor(settingsRepository))
             .build()
     }
@@ -133,9 +129,11 @@ object NetworkModule {
     @OsmChaClient
     fun provideOsmChaOkHttpClient(
         @BaseClient baseClient: OkHttpClient,
-        settingsRepository: SettingsRepository
+        settingsRepository: SettingsRepository,
+        @OsmChaCache cache: Cache
     ): OkHttpClient {
         return baseClient.newBuilder()
+            .cache(cache)
             .connectTimeout(OSMCHA_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(OSMCHA_TIMEOUT, TimeUnit.SECONDS)
             .writeTimeout(OSMCHA_TIMEOUT, TimeUnit.SECONDS)
@@ -173,8 +171,44 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @NominatimClient
+    fun provideNominatimOkHttpClient(
+        @BaseClient baseClient: OkHttpClient,
+        settingsRepository: SettingsRepository,
+        @NominatimCache cache: Cache
+    ): OkHttpClient {
+        return baseClient.newBuilder()
+            .cache(cache)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val isCacheEnabled = settingsRepository.isNominatimCacheEnabledOnce()
+                val newRequest = if (!isCacheEnabled) {
+                    request.newBuilder().header("Cache-Control", "no-cache").build()
+                } else {
+                    request
+                }
+                chain.proceed(newRequest)
+            }
+            .addNetworkInterceptor { chain ->
+                val response = chain.proceed(chain.request())
+                val isCacheEnabled = settingsRepository.isNominatimCacheEnabledOnce()
+                if (!isCacheEnabled) {
+                    response.newBuilder()
+                        .header("Cache-Control", "no-cache, no-store, must-revalidate")
+                        .header("Pragma", "no-cache")
+                        .removeHeader("Expires")
+                        .build()
+                } else {
+                    response
+                }
+            }
+            .build()
+    }
+
+    @Provides
+    @Singleton
     fun provideNominatimApiService(
-        @BaseClient client: OkHttpClient,
+        @NominatimClient client: OkHttpClient,
         json: Json
     ): NominatimApiService {
         val contentType = "application/json".toMediaType()

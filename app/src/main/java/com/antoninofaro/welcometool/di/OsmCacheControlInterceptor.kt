@@ -8,7 +8,7 @@ class OsmCacheControlInterceptor(
     private val cacheEnabledProvider: () -> Boolean = { true }
 ) : Interceptor {
 
-    constructor(settingsRepository: SettingsRepository) : this({ settingsRepository.isCacheEnabledOnce() })
+    constructor(settingsRepository: SettingsRepository) : this({ settingsRepository.isOsmApiCacheEnabledOnce() })
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()

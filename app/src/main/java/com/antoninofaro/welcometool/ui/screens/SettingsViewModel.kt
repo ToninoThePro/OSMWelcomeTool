@@ -184,6 +184,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun updateCacheCategoryEnabled(categoryId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateCacheCategoryEnabled(categoryId, enabled)
+        }
+    }
+
+    // Keep this for backward compatibility if needed by the UI
     fun updateCacheEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.updateCacheEnabled(enabled)
