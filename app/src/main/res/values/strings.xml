@@ -10,7 +10,6 @@
     <string name="auto_refresh_title">Aggiornamento Automatico</string>
     <string name="back_desc">Indietro</string>
     <string name="cache_desc">Salva dati in cache per velocizzare il caricamento</string>
-    <string name="cache_info_section">CACHE E INFORMAZIONI</string>
     <string name="cache_title">Cache Attiva</string>
     <string name="cancel_btn">Annulla</string>
     <string name="channel_new_mapper_desc">Avvisa se ci sono stati rilevati nuovi utenti</string>
@@ -18,6 +17,7 @@
     <string name="channel_updates_desc">Notifiche per nuovi mappatori nell\'area selezionata</string>
     <string name="channel_updates_name">Aggiornamenti Mappatori</string>
     <string name="changeset_count">%d changeset</string>
+    <string name="changesets_count">%d changeset</string>
     <string name="changeset_limit_hint">Limite 1–500</string>
     <string name="changesets_to_check">Changeset da Controllare</string>
     <string name="clear_btn">Pulisci</string>
@@ -137,6 +137,8 @@
     <string name="reset_dialog_desc">Sei sicuro di voler ripristinare tutte le impostazioni ai valori predefiniti?</string>
     <string name="reset_dialog_title">Ripristina Impostazioni</string>
     <string name="reset_settings_btn">Ripristina Impostazioni Predefinite</string>
+    <string name="clear_all_cache_btn">Svuota Tutte le Cache</string>
+    <string name="clear_all_cache_desc">Elimina tutte le cache HTTP (OSM API, OSMCha, Nominatim, Avatar). I dati utente e changeset nel database locale non vengono toccati.</string>
     <string name="returning_filter">Ritornati</string>
     <string name="advanced_filters">Filtri Avanzati</string>
     <string name="save_btn">Salva</string>
@@ -196,4 +198,41 @@
     <string name="cache_category_osmcha">OSMCha</string>
     <string name="cache_category_nominatim">Nominatim</string>
     <string name="cache_category_avatar">Avatar (Coil)</string>
+    <string name="cache_category_osm_api_desc">Risposte API OpenStreetMap</string>
+    <string name="cache_category_nominatim_desc">Ricerche di rete Nominatim</string>
+    <string name="cache_category_osmcha_desc">Chiamate e verifiche OSMCha</string>
+    <string name="cache_category_avatar_desc">Immagini profilo scaricate (Coil)</string>
+    <string name="cache_api_calls_title">Cache Chiamate API (Memoria Temporanea)</string>
+    <string name="clear_category_cache">Svuota cache %s</string>
+    <string name="cache_section">CACHE E MEMORIA</string>
+    <string name="other_info_section">ALTRE INFO</string>
+    <string name="cache_info_section">INFORMAZIONI APP</string>
+    <string name="cache_http_section">Cache HTTP</string>
+    <string name="cache_total_size">Totale cache eliminabile: %s</string>
+    <string name="cache_size_bytes">%d B</string>
+    <string name="cache_size_kb">%.1f KB</string>
+    <string name="cache_size_mb">%.1f MB</string>
+    <string name="cache_size_gb">%.1f GB</string>
+    <string name="cache_clear_desc">Svuota cache di questa categoria</string>
+    <string name="cache_disabled_warning">Disabilitando questa cache, l\'app farà più richieste ai server OSM</string>
+    <string name="cache_protected_data_title">Dati protetti (non eliminabili)</string>
+    <string name="cache_protected_data_desc">Utenti, changeset e registri benvenuto/notifiche sono conservati permanentemente</string>
+    <string name="non_cache_data_title">Elementi e Dati Conservati dall\'App</string>
+    <string name="non_cache_data_desc">Dati salvati in locale nel database e nelle preferenze. Non vengono eliminati cancellando la cache temporanea.</string>
+    <string name="cache_room_users">Utenti memorizzati</string>
+    <string name="cache_room_changesets">Changeset memorizzati</string>
+    <string name="cache_room_activity">Attività aree monitorate</string>
+    <string name="cache_datastore_welcomed">Utenti segnati come benvenuti</string>
+    <string name="cache_datastore_notified">Utenti registrati come notificati</string>
+    <string name="count_users">%d utenti</string>
+    <string name="count_changesets">%d changeset</string>
+    <string name="count_activities">%d registri area</string>
+    <string name="count_welcomed">%d utenti</string>
+    <string name="count_notified">%d utenti</string>
+    <!-- Cache calculation -->
+    <string name="calculating">Calcolo…</string>
+    <string name="total_clearable_cache">Totale cache eliminabile</string>
+    <string name="protected_data_info">Dati protetti (informativi)</string>
+    <string name="local_database">Database locale (Room)</string>
+    <string name="settings_preferences">Impostazioni e preferenze (DataStore)</string>
 </resources>

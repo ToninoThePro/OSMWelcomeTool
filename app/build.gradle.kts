@@ -130,6 +130,7 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.mockito.core)
     testImplementation(libs.mockito.kotlin)
+    testImplementation(libs.mockk)
     testImplementation(libs.androidx.core.testing)
     testImplementation(libs.androidx.core)
     testImplementation(libs.androidx.junit.ktx)

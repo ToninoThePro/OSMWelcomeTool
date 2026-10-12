@@ -33,7 +33,6 @@ class CacheRegistry @Inject constructor(
                 override val isEnabled = settings.cacheEnabledOsmApi
                 override val sizeBytes: Long
                     get() = try { osmCache.size() } catch (e: Exception) { 0L }
-                override val priority = CachePriority.HIGH
                 override fun clear() { try { osmCache.evictAll() } catch (e: Exception) { } }
             },
             object : CacheCategory {
@@ -42,7 +41,6 @@ class CacheRegistry @Inject constructor(
                 override val isEnabled = settings.cacheEnabledOsmCha
                 override val sizeBytes: Long
                     get() = try { osmChaCache.size() } catch (e: Exception) { 0L }
-                override val priority = CachePriority.MEDIUM
                 override fun clear() { try { osmChaCache.evictAll() } catch (e: Exception) { } }
             },
             object : CacheCategory {
@@ -51,7 +49,6 @@ class CacheRegistry @Inject constructor(
                 override val isEnabled = settings.cacheEnabledNominatim
                 override val sizeBytes: Long
                     get() = try { nominatimCache.size() } catch (e: Exception) { 0L }
-                override val priority = CachePriority.LOW
                 override fun clear() { try { nominatimCache.evictAll() } catch (e: Exception) { } }
             },
             object : CacheCategory {
@@ -60,7 +57,6 @@ class CacheRegistry @Inject constructor(
                 override val isEnabled = settings.cacheEnabledAvatar
                 override val sizeBytes: Long
                     get() = try { context.imageLoader.diskCache?.size ?: 0L } catch (e: Exception) { 0L }
-                override val priority = CachePriority.LOW
                 override fun clear() { try { context.imageLoader.diskCache?.clear() } catch (e: Exception) { } }
             }
         )

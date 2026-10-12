@@ -27,39 +27,58 @@ class RateLimitInterceptorTest {
     }
 
     @Test
-    fun `429 with Retry-After header retries and eventually succeeds`() {
+    fun `429 throws RateLimitException with Retry-After header`() {
         mockWebServer.enqueue(
-            MockResponse().setResponseCode(429).setHeader("Retry-After", "1")
-        )
-        mockWebServer.enqueue(
-            MockResponse().setResponseCode(200).setBody("success")
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "5")
         )
 
-        val response = client.newCall(
-            okhttp3.Request.Builder().url(mockWebServer.url("/")).build()
-        ).execute()
+        var exception: RateLimitException? = null
+        try {
+            client.newCall(okhttp3.Request.Builder().url(mockWebServer.url("/")).build()).execute()
+        } catch (e: RateLimitException) {
+            exception = e
+        }
 
-        assertThat(response.code).isEqualTo(200)
-        assertThat(response.body?.string()).isEqualTo("success")
-        assertThat(mockWebServer.requestCount).isEqualTo(2)
+        assertThat(exception).isNotNull()
+        assertThat(exception!!.retryAfterSeconds).isEqualTo(5L)
+        assertThat(mockWebServer.requestCount).isEqualTo(1)
     }
 
     @Test
-    fun `429 throws RateLimitException after max retries`() {
-        // Enqueue 4 429 responses (initial + 3 retries)
-        for (i in 0 until 4) {
-            mockWebServer.enqueue(
-                MockResponse().setResponseCode(429).setHeader("Retry-After", "0")
-            )
+    fun `429 without Retry-After header throws RateLimitException with default backoff`() {
+        mockWebServer.enqueue(
+            MockResponse().setResponseCode(429)
+        )
+
+        var exception: RateLimitException? = null
+        try {
+            client.newCall(okhttp3.Request.Builder().url(mockWebServer.url("/")).build()).execute()
+        } catch (e: RateLimitException) {
+            exception = e
         }
 
-        val exception = runCatching {
-            client.newCall(okhttp3.Request.Builder().url(mockWebServer.url("/")).build()).execute()
-        }.exceptionOrNull()
+        assertThat(exception).isNotNull()
+        assertThat(exception!!.retryAfterSeconds).isEqualTo(60L)
+        assertThat(mockWebServer.requestCount).isEqualTo(1)
+    }
 
-        assertThat(exception).isInstanceOf(RateLimitException::class.java)
-        // With Retry-After: 0, backoff should use that value for currentBackoff in the exception
-        assertThat(mockWebServer.requestCount).isEqualTo(4)
+    @Test
+    fun `429 with Retry-After 0 uses default backoff`() {
+        mockWebServer.enqueue(
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "0")
+        )
+
+        var exception: RateLimitException? = null
+        try {
+            client.newCall(okhttp3.Request.Builder().url(mockWebServer.url("/")).build()).execute()
+        } catch (e: RateLimitException) {
+            exception = e
+        }
+
+        // Retry-After: 0 should be treated as missing, use default 60s
+        assertThat(exception).isNotNull()
+        assertThat(exception!!.retryAfterSeconds).isEqualTo(60L)
+        assertThat(mockWebServer.requestCount).isEqualTo(1)
     }
 
     @Test

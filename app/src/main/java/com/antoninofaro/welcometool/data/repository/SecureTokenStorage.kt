@@ -27,6 +27,7 @@ class SecureTokenStorage @Inject constructor(
     }
 
     private var encryptedPrefs: SharedPreferences = buildEncryptedPrefs()
+    private var isUsingFallback: Boolean = false
 
     private fun buildEncryptedPrefs(): SharedPreferences {
         return try {
@@ -43,9 +44,12 @@ class SecureTokenStorage @Inject constructor(
                 e,
                 "EncryptedSharedPreferences critical failure! Falling back to volatile in-memory store. Tokens will not persist across app restarts."
             )
+            isUsingFallback = true
             inMemoryPrefs
         }
     }
+
+    fun isUsingFallback(): Boolean = isUsingFallback
 
     fun saveOsmchaToken(token: String) {
         Timber.d("SecureTokenStorage: saving token (len=%d)", token.length)

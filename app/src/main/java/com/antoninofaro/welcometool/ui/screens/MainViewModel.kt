@@ -80,7 +80,6 @@ class MainViewModel @Inject constructor(
 
     companion object {
         private const val USER_CACHE_TTL_MS = 24 * 60 * 60 * 1000L
-        private const val CACHE_PAGE_TTL_MS = 30 * 60 * 1000L
         private const val DORMANT_USER_THRESHOLD_MS = 15L * 24 * 60 * 60 * 1000L // 15 Days
         private const val LOCAL_PAGE_SIZE = 100
         private const val INITIAL_SCAN_WINDOWS = 8
@@ -381,7 +380,13 @@ class MainViewModel @Inject constructor(
     }
 
     private fun computeOlderCursor(changesets: List<OsmChangeset>): String? {
-        return changesets.minByOrNull { it.createdAt }?.createdAt
+        return changesets.minByOrNull { 
+            try {
+                java.time.Instant.parse(it.createdAt).toEpochMilli()
+            } catch (e: Exception) {
+                Long.MAX_VALUE
+            }
+        }?.createdAt
     }
 
     private suspend fun loadCachedUsersOrShowError(bbox: String, fallbackErrorMessage: String) {
@@ -410,7 +415,19 @@ class MainViewModel @Inject constructor(
 
     private fun isUserUpdateRequired(cached: UserEntity?, recent: OsmChangeset): Boolean {
         if (cached == null) return true
-        if (recent.createdAt > (cached.lastActiveDate ?: "")) return true
+        val recentMillis = try {
+            java.time.Instant.parse(recent.createdAt).toEpochMilli()
+        } catch (e: Exception) {
+            Long.MAX_VALUE
+        }
+        val cachedMillis = cached.lastActiveDate?.let {
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                Long.MIN_VALUE
+            }
+        } ?: Long.MIN_VALUE
+        if (recentMillis > cachedMillis) return true
 
         val isStale = System.currentTimeMillis() - cached.lastUpdated > USER_CACHE_TTL_MS
         val isDormant = cached.lastActiveDate?.let { lastDate ->
@@ -425,10 +442,6 @@ class MainViewModel @Inject constructor(
         return isStale && !isDormant
     }
 
-    private fun isPageStale(pageUsers: List<UserUiModel>): Boolean {
-        val newestLastUpdated = pageUsers.maxOfOrNull { it.lastUpdated } ?: return true
-        return System.currentTimeMillis() - newestLastUpdated > CACHE_PAGE_TTL_MS
-    }
 
     private suspend fun getWelcomedIds(forceRefresh: Boolean = false): Set<String> {
         return welcomedMutex.withLock {
@@ -548,10 +561,10 @@ class MainViewModel @Inject constructor(
     private fun reloadLocalData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
-                isLoading = true, 
-                errorMessage = null, 
-                hasReachedEnd = false,
-                users = emptyList() // clear the users list as requested
+                isLoading = true,
+                errorMessage = null,
+                hasReachedEnd = false
+                // Keep existing users list to avoid UI flicker
             )
             currentPageOffset = 0
             try {
@@ -743,10 +756,13 @@ class MainViewModel @Inject constructor(
 
             val welcomedIds = getWelcomedIds()
 
-            val userChangesets = repository.fetchUserChangesets(userId, 100).getOrNull().orEmpty()
-
+            // Use totalEdits from user detail response instead of fetching changesets
+            // firstChangesetDate is already stored in cached entity
             val isWelcomed = welcomedIds.contains(userId.toString())
-            val analysis = UserAnalyzer.analyze(user, userChangesets, null, isWelcomed = isWelcomed)
+            val totalEdits = user.changesets?.count ?: 0
+            val analysis = UserAnalyzer.analyze(user, emptyList(), null, isWelcomed = isWelcomed).copy(
+                totalEdits = totalEdits
+            )
 
             val userEntity = user.toEntity(analysis)
 

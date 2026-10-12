@@ -48,11 +48,6 @@ class OsmChaRepository @Inject constructor(
         )
     }
 
-    suspend fun verifyToken(): Result<String> = safeApiCall {
-        val response = osmChaService.getCurrentUser()
-        response.username
-    }
-
     suspend fun verifyTokenDetailed(): VerifyTokenResult {
         return try {
             val response = osmChaService.getCurrentUser()

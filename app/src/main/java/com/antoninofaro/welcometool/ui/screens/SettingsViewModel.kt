@@ -6,6 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.antoninofaro.welcometool.BuildConfig
 import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.Result
+import com.antoninofaro.welcometool.data.cache.CacheCategory
+import com.antoninofaro.welcometool.data.cache.CacheRegistry
+import com.antoninofaro.welcometool.data.cache.CacheSizeCalculator
+import com.antoninofaro.welcometool.data.cache.CacheSizesResult
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
 import com.antoninofaro.welcometool.data.repository.NominatimRepository
@@ -21,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,7 +44,9 @@ class SettingsViewModel @Inject constructor(
     private val nominatimRepository: NominatimRepository,
     private val notifiedUserStorage: NotifiedUserStorage,
     private val osmChaRepository: OsmChaRepository,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    private val cacheRegistry: CacheRegistry,
+    private val cacheSizeCalculator: CacheSizeCalculator
 ) : ViewModel() {
 
     private val _nominatimResults = MutableStateFlow<List<MonitoringArea>>(emptyList())
@@ -61,6 +68,23 @@ class SettingsViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = AppSettings()
         )
+
+    val cacheCategories: StateFlow<List<CacheCategory>> =
+        settingsRepository.settingsFlow
+            .map { _ -> cacheRegistry.getCategories() }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+    private val _cacheSizes = MutableStateFlow<CacheSizesResult?>(null)
+    val cacheSizes: StateFlow<CacheSizesResult?> = _cacheSizes.asStateFlow()
+
+    private val _isCalculatingSizes = MutableStateFlow(false)
+    val isCalculatingSizes: StateFlow<Boolean> = _isCalculatingSizes.asStateFlow()
+
+    private var cacheSizeJob: Job? = null
 
     private var verifyJob: Job? = null
 
@@ -101,11 +125,6 @@ class SettingsViewModel @Inject constructor(
         com.antoninofaro.welcometool.utils.WorkerUtils.triggerOneTimeOsmSync(context)
     }
 
-    fun setOnboardingCompleted(completed: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.updateOnboardingCompleted(completed)
-        }
-    }
 
     suspend fun completeOnboarding(area: MonitoringArea) {
         settingsRepository.setDefaultMonitoringArea(area)
@@ -178,25 +197,35 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun updateMinChangesetsFilter(min: Int) {
+    fun clearCacheCategory(categoryId: String) {
         viewModelScope.launch {
-            settingsRepository.updateMinChangesetsFilter(min)
+            cacheRegistry.getCategories().firstOrNull { it.id == categoryId }?.clear()
         }
     }
 
-    fun updateCacheCategoryEnabled(categoryId: String, enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.updateCacheCategoryEnabled(categoryId, enabled)
+    fun startCacheSizeCalculation() {
+        if (_isCalculatingSizes.value) return
+        cacheSizeJob?.cancel()
+        cacheSizeJob = viewModelScope.launch {
+            _isCalculatingSizes.value = true
+            try {
+                val result = cacheSizeCalculator.calculateAllSizes(cacheRegistry)
+                _cacheSizes.value = result
+            } catch (e: Exception) {
+                // Ignore failure
+            } finally {
+                _isCalculatingSizes.value = false
+            }
         }
+    }
+
+    fun cancelCacheSizeCalculation() {
+        cacheSizeJob?.cancel()
+        _isCalculatingSizes.value = false
+        _cacheSizes.value = null
     }
 
     // Keep this for backward compatibility if needed by the UI
-    fun updateCacheEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.updateCacheEnabled(enabled)
-        }
-    }
-
     fun sendTestNotification() {
         if (BuildConfig.DEBUG) {
             notificationHelper.sendTestNotification()
@@ -283,4 +312,13 @@ class SettingsViewModel @Inject constructor(
 
     fun getTokenVerifiedMessage(username: String): String =
         application.getString(R.string.token_verified_snackbar, username)
+
+    fun clearAllCaches() {
+        viewModelScope.launch {
+            cacheRegistry.getCategories().forEach { category ->
+                category.clear()
+            }
+            startCacheSizeCalculation()
+        }
+    }
 }

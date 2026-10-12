@@ -19,11 +19,6 @@ import org.mockito.kotlin.whenever
 import org.robolectric.annotation.Config
 import java.io.File
 
-// Access the datastore for setup using the same extension logic or reflection, 
-// actually since it's private in the file, we can just use the repository to clear it.
-// Or we can define a matching extension here since it's based on name "settings".
-private val Context.testDataStore by preferencesDataStore(name = "settings")
-
 @RunWith(AndroidJUnit4::class)
 @Config(manifest = Config.NONE)
 class SettingsRepositoryTest {
@@ -51,8 +46,8 @@ class SettingsRepositoryTest {
 
     @Test
     fun testLegacyCacheEnabledMigration_false() = runTest {
-        // Setup legacy state
-        context.testDataStore.edit { it[CACHE_ENABLED] = false }
+        // Setup legacy state using the same dataStore as repository
+        context.dataStore.edit { it[CACHE_ENABLED] = false }
         
         // When we read flow, it should migrate false to all new flags
         val settings = repository.settingsFlow.first()
@@ -66,7 +61,7 @@ class SettingsRepositoryTest {
     @Test
     fun testLegacyCacheEnabledMigration_true() = runTest {
         // Setup legacy state
-        context.testDataStore.edit { it[CACHE_ENABLED] = true }
+        context.dataStore.edit { it[CACHE_ENABLED] = true }
         
         val settings = repository.settingsFlow.first()
         
@@ -79,7 +74,7 @@ class SettingsRepositoryTest {
     @Test
     fun testCategoryToggle_materializesLegacyStateAndDeletesLegacyKey() = runTest {
         // Start with legacy true
-        context.testDataStore.edit { it[CACHE_ENABLED] = true }
+        context.dataStore.edit { it[CACHE_ENABLED] = true }
 
         // Change one flag
         repository.updateCacheCategoryEnabled("osm_api", false)
@@ -95,7 +90,7 @@ class SettingsRepositoryTest {
         assertThat(settings.cacheEnabledAvatar).isTrue()
 
         // Ensure legacy key is removed
-        val prefs = context.testDataStore.data.first()
+        val prefs = context.dataStore.data.first()
         assertThat(prefs.contains(CACHE_ENABLED)).isFalse()
         
         // Verify materialized keys exist

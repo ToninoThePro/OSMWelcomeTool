@@ -26,9 +26,17 @@ class OsmChaCacheControlInterceptor(
                 .removeHeader("Expires")
                 .build()
         }
-        return response.newBuilder()
-            .header("Cache-Control", "public, max-age=3600")
-            .removeHeader("Pragma")
-            .build()
+
+        val originalCacheControl = response.header("Cache-Control")
+        val needsDefaultCacheControl = originalCacheControl == null
+
+        return if (needsDefaultCacheControl) {
+            response.newBuilder()
+                .header("Cache-Control", "public, max-age=3600")
+                .removeHeader("Pragma")
+                .build()
+        } else {
+            response
+        }
     }
 }

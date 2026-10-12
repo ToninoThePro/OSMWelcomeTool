@@ -1,6 +1,8 @@
 package com.antoninofaro.welcometool.ui.screens
 
 import android.app.Application
+import com.antoninofaro.welcometool.data.cache.CacheRegistry
+import com.antoninofaro.welcometool.data.cache.CacheSizeCalculator
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.NominatimRepository
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
@@ -9,6 +11,7 @@ import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.repository.VerifyTokenResult
 import com.antoninofaro.welcometool.utils.NotificationHelper
 import com.google.common.truth.Truth.assertThat
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -34,6 +37,8 @@ class SettingsViewModelTest {
     private val notifiedUserStorage = mock<NotifiedUserStorage>()
     private val osmChaRepository = mock<OsmChaRepository>()
     private val notificationHelper = mock<NotificationHelper>()
+    private val cacheRegistry = mock<CacheRegistry>()
+    private val cacheSizeCalculator = mockk<CacheSizeCalculator>()
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var viewModel: SettingsViewModel
@@ -43,6 +48,7 @@ class SettingsViewModelTest {
         Dispatchers.setMain(testDispatcher)
 
         whenever(settingsRepository.settingsFlow).thenReturn(flowOf(AppSettings()))
+        whenever(cacheRegistry.getCategories()).thenReturn(emptyList())
         whenever(application.getString(any())).thenReturn("")
 
         viewModel = SettingsViewModel(
@@ -51,7 +57,9 @@ class SettingsViewModelTest {
             nominatimRepository = nominatimRepository,
             notifiedUserStorage = notifiedUserStorage,
             osmChaRepository = osmChaRepository,
-            notificationHelper = notificationHelper
+            notificationHelper = notificationHelper,
+            cacheRegistry = cacheRegistry,
+            cacheSizeCalculator = cacheSizeCalculator
         )
     }
 

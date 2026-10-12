@@ -19,7 +19,6 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import timber.log.Timber
-import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -28,7 +27,6 @@ import javax.inject.Singleton
 object NetworkModule {
 
     private const val OSMCHA_TIMEOUT = 120L
-    private const val NOMINATIM_TIMEOUT = 30L
     private const val OSM_CONNECT_TIMEOUT = 30L
     private const val OSM_READ_TIMEOUT = 30L
     private const val OSM_WRITE_TIMEOUT = 30L
@@ -179,29 +177,7 @@ object NetworkModule {
     ): OkHttpClient {
         return baseClient.newBuilder()
             .cache(cache)
-            .addInterceptor { chain ->
-                val request = chain.request()
-                val isCacheEnabled = settingsRepository.isNominatimCacheEnabledOnce()
-                val newRequest = if (!isCacheEnabled) {
-                    request.newBuilder().header("Cache-Control", "no-cache").build()
-                } else {
-                    request
-                }
-                chain.proceed(newRequest)
-            }
-            .addNetworkInterceptor { chain ->
-                val response = chain.proceed(chain.request())
-                val isCacheEnabled = settingsRepository.isNominatimCacheEnabledOnce()
-                if (!isCacheEnabled) {
-                    response.newBuilder()
-                        .header("Cache-Control", "no-cache, no-store, must-revalidate")
-                        .header("Pragma", "no-cache")
-                        .removeHeader("Expires")
-                        .build()
-                } else {
-                    response
-                }
-            }
+            .addNetworkInterceptor(NominatimCacheControlInterceptor(settingsRepository))
             .build()
     }
 

@@ -28,7 +28,10 @@ abstract class ChangesetDao {
                     osmchaScore = existing.osmchaScore ?: entity.osmchaScore,
                     osmchaIsSuspect = existing.osmchaIsSuspect || entity.osmchaIsSuspect,
                     osmchaHarmful = existing.osmchaHarmful ?: entity.osmchaHarmful,
-                    osmchaReasonsJson = existing.osmchaReasonsJson ?: entity.osmchaReasonsJson
+                    osmchaReasonsJson = existing.osmchaReasonsJson ?: entity.osmchaReasonsJson,
+                    lastUpdated = existing.lastUpdated,
+                    etag = existing.etag ?: entity.etag,
+                    lastModified = existing.lastModified ?: entity.lastModified
                 )
                 insertChangeset(merged)
             } else {

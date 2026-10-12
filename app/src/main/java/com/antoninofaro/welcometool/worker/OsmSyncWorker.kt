@@ -38,7 +38,6 @@ class OsmSyncWorker @AssistedInject constructor(
         private const val MAX_DEEP_SCAN_WINDOWS = 4
         private const val SEMAPHORE_LIMIT = 6
         private const val CHANGESET_LIMIT = 100
-        private const val OSM_EPOCH_START = "2005-01-01T00:00:00Z"
     }
 
     override suspend fun doWork(): Result {
@@ -160,7 +159,13 @@ class OsmSyncWorker @AssistedInject constructor(
     }
 
     private fun computeDeepCursor(batch: List<OsmChangeset>): String? {
-        return batch.minByOrNull { it.createdAt }?.createdAt
+        return batch.minByOrNull { 
+            try {
+                java.time.Instant.parse(it.createdAt).toEpochMilli()
+            } catch (e: Exception) {
+                Long.MAX_VALUE
+            }
+        }?.createdAt
     }
 
     private suspend fun checkNewChangesets(
@@ -207,7 +212,7 @@ class OsmSyncWorker @AssistedInject constructor(
                 .map { uid ->
                     async {
                         semaphore.withPermit {
-                            processNewcomer(uid, changesetsByUid, settings)
+                            processNewcomer(uid, changesets, changesetsByUid, settings)
                         }
                     }
                 }
@@ -229,6 +234,7 @@ class OsmSyncWorker @AssistedInject constructor(
 
     private suspend fun processNewcomer(
         uid: Long,
+        allChangesets: List<OsmChangeset>,
         changesetsByUid: Map<Long, OsmChangeset>,
         settings: com.antoninofaro.welcometool.data.repository.AppSettings
     ): Pair<Long, Triple<Long, String, String>>? = coroutineScope {
@@ -242,12 +248,9 @@ class OsmSyncWorker @AssistedInject constructor(
         }
 
         val recentCs = changesetsByUid[uid]
-        val changesetsResult = osmRepository.fetchUserChangesets(uid, CHANGESET_LIMIT)
-        if (changesetsResult.isError && changesetsResult.exceptionOrNull() is com.antoninofaro.welcometool.di.RateLimitException) {
-            throw changesetsResult.exceptionOrNull() as com.antoninofaro.welcometool.di.RateLimitException
-        }
-        val allChangesets = changesetsResult.getOrNull().orEmpty()
-        val analysis = UserAnalyzer.analyze(user, allChangesets, recentCs)
+        // Use changesets from the scan instead of fetching again
+        val userChangesets = allChangesets.filter { it.uid == uid }
+        val analysis = UserAnalyzer.analyze(user, userChangesets, recentCs)
 
         if (analysis.isNewcomer) {
             Timber.d("New mapper detected: ${user.displayName}")

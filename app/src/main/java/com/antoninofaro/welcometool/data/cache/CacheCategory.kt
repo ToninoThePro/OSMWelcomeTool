@@ -5,6 +5,5 @@ interface CacheCategory {
     val name: String
     val isEnabled: Boolean
     val sizeBytes: Long
-    val priority: CachePriority
     fun clear()
 }

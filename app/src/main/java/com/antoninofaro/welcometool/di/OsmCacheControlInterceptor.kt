@@ -26,15 +26,23 @@ class OsmCacheControlInterceptor(
                 .removeHeader("Expires")
                 .build()
         }
+
+        val originalCacheControl = response.header("Cache-Control")
+        val originalExpires = response.header("Expires")
+        val originalETag = response.header("ETag")
+        val originalLastModified = response.header("Last-Modified")
+
         val url = request.url.toString()
-        val cacheControl = when {
-            url.contains("/api/0.6/user/") -> "public, max-age=86400"
-            url.contains("/api/0.6/changesets.json") -> "public, max-age=300"
+        val needsDefaultCacheControl = originalCacheControl == null
+        val defaultCacheControl = when {
+            url.contains("/api/0.6/user/") && needsDefaultCacheControl -> "public, max-age=86400"
+            url.contains("/api/0.6/changesets.json") && needsDefaultCacheControl -> "public, max-age=300"
             else -> null
         }
-        return if (cacheControl != null) {
+
+        return if (defaultCacheControl != null) {
             response.newBuilder()
-                .header("Cache-Control", cacheControl)
+                .header("Cache-Control", defaultCacheControl)
                 .removeHeader("Pragma")
                 .build()
         } else {

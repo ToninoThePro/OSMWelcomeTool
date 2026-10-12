@@ -242,17 +242,7 @@ class ChangesetsViewModel @Inject constructor(
         loadLocalChangesets(true)
     }
 
-    fun toggleFilterAnomalies() {
-        _uiState.value = _uiState.value.copy(filterAnomalies = !_uiState.value.filterAnomalies)
-        loadLocalChangesets(true)
-    }
 
-    fun updateBBox(bbox: String) {
-        if (_uiState.value.selectedBBox != bbox) {
-            _uiState.value = _uiState.value.copy(selectedBBox = bbox)
-            loadLocalChangesets(true)
-        }
-    }
 
 
     fun fetchMoreUserChangesets(uid: Long) {
