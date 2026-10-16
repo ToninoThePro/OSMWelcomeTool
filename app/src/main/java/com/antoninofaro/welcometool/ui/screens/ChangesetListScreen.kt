@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +48,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.ChangesetUiModel
 import com.antoninofaro.welcometool.ui.components.ChangesetCard
+import com.antoninofaro.welcometool.ui.components.VerticalScrollbar
 import com.antoninofaro.welcometool.ui.components.fadingEdge
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.delay
@@ -77,14 +80,12 @@ fun ChangesetListScreen(
     onChangesetClick: (ChangesetUiModel) -> Unit,
     onClearUserFilter: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
     
     LaunchedEffect(initialUserFilter) {
         if (initialUserFilter != null) {
             viewModel.updateUserFilter(initialUserFilter)
-        } else {
-            viewModel.updateUserFilter(null)
         }
     }
     
@@ -341,29 +342,39 @@ fun ChangesetListScreen(
                             )
                         }
                     } else {
-                        LazyColumn(
-                            state = listState,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(uiState.changesets) { changeset ->
-                                ChangesetCard(
-                                    uiModel = changeset,
-                                    onClick = { onChangesetClick(changeset) }
-                                )
-                            }
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            LazyColumn(
+                                state = listState,
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(uiState.changesets) { changeset ->
+                                    ChangesetCard(
+                                        uiModel = changeset,
+                                        onClick = { onChangesetClick(changeset) }
+                                    )
+                                }
 
-                            if (uiState.isPaging) {
-                                item {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                if (uiState.isPaging) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                        }
                                     }
                                 }
                             }
+
+                            VerticalScrollbar(
+                                listState = listState,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight()
+                                    .padding(end = 4.dp)
+                            )
                         }
                         
                         LaunchedEffect(listState) {

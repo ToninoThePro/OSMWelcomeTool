@@ -54,7 +54,7 @@ class OsmRepositoryTest {
             )
         )
         val wrapper = OsmChangesetWrapper(mockChangesets)
-        `when`(apiService.getRecentChangesets(Constants.ITALY_BBOX, null, null)).thenReturn(wrapper)
+        `when`(apiService.getRecentChangesets(Constants.WORLD_BBOX, null, null)).thenReturn(wrapper)
 
         // When
         val result = repository.fetchRecentChangesets()
@@ -70,7 +70,7 @@ class OsmRepositoryTest {
     fun `fetchRecentChangesets returns error on exception`() = runTest {
         // Given
         val exception = RuntimeException("Network error")
-        `when`(apiService.getRecentChangesets(Constants.ITALY_BBOX, null, null))
+        `when`(apiService.getRecentChangesets(Constants.WORLD_BBOX, null, null))
             .thenThrow(exception)
 
         // When
@@ -135,7 +135,7 @@ class OsmRepositoryTest {
     @Test
     fun `result getOrDefault returns default on error`() = runTest {
         // Given
-        `when`(apiService.getRecentChangesets(Constants.ITALY_BBOX, null, null))
+        `when`(apiService.getRecentChangesets(Constants.WORLD_BBOX, null, null))
             .thenThrow(RuntimeException())
 
         // When

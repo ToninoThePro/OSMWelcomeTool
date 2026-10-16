@@ -57,6 +57,7 @@ fun SettingsScreen(
     onNavigateToLicenses: () -> Unit
 ) {
     val tokenVerification by viewModel.tokenVerification.collectAsState()
+    val settingsMessage by viewModel.settingsMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(tokenVerification) {
@@ -70,6 +71,13 @@ fun SettingsScreen(
             }
 
             else -> {}
+        }
+    }
+
+    LaunchedEffect(settingsMessage) {
+        settingsMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSettingsMessage()
         }
     }
 

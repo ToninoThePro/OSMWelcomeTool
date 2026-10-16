@@ -21,7 +21,7 @@ class SafeApiCallTest {
 
     @Test
     fun `exception is wrapped in Result Error`() = runTest {
-        val result = safeApiCall { throw IllegalStateException("boom") }
+        val result = safeApiCall<Unit> { throw IllegalStateException("boom") }
 
         assertThat(result).isInstanceOf(Result.Error::class.java)
         assertThat((result as Result.Error).exception).hasMessageThat().isEqualTo("boom")
@@ -32,12 +32,12 @@ class SafeApiCallTest {
 
     @Test(expected = CancellationException::class)
     fun `CancellationException is rethrown`() = runTest {
-        safeApiCall { throw CancellationException("cancelled") }
+        safeApiCall<Unit> { throw CancellationException("cancelled") }
     }
 
     @Test
     fun `Error message is captured from exception`() = runTest {
-        val result = safeApiCall { throw RuntimeException("custom message") }
+        val result = safeApiCall<Unit> { throw RuntimeException("custom message") }
 
         assertThat((result as Result.Error).message).isEqualTo("custom message")
     }
@@ -60,7 +60,7 @@ class SafeApiCallTest {
 
     @Test
     fun `onError callback is invoked for Error`() = runTest {
-        val safeResult = safeApiCall { throw RuntimeException("fail") }
+        val safeResult = safeApiCall<Unit> { throw RuntimeException("fail") }
         var invoked = false
         safeResult.onError { invoked = true; assertThat(it.message).isEqualTo("fail") }
         assertThat(invoked).isTrue()
@@ -68,7 +68,7 @@ class SafeApiCallTest {
 
     @Test
     fun `onSuccess callback is not invoked for Error`() = runTest {
-        val safeResult = safeApiCall { throw RuntimeException("fail") }
+        val safeResult = safeApiCall<Unit> { throw RuntimeException("fail") }
         var invoked = false
         safeResult.onSuccess { invoked = true }
         assertThat(invoked).isFalse()

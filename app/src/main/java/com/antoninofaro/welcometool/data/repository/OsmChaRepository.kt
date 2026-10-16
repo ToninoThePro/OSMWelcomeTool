@@ -70,7 +70,12 @@ class OsmChaRepository @Inject constructor(
             osmChaService.getChangesetDetail(changesetId)
         }.also { result ->
             if (result.isError) {
-                Timber.e(result.exceptionOrNull(), "Error fetching OsmCha changeset detail for id: $changesetId")
+                val ex = result.exceptionOrNull()
+                if (ex is HttpException && ex.code() == 401) {
+                    Timber.d("OsmCha token required for changeset detail (HTTP 401)")
+                } else {
+                    Timber.e(ex, "Error fetching OsmCha changeset detail for id: $changesetId")
+                }
             } else {
                 Timber.d("Successfully fetched OsmCha changeset detail for id: $changesetId")
             }

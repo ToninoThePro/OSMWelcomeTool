@@ -6,7 +6,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +13,24 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
@@ -53,7 +56,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +69,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -70,6 +79,7 @@ import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.model.OsmUser
 import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.ui.components.ProfileAvatar
+import com.antoninofaro.welcometool.ui.components.VerticalScrollbar
 import com.antoninofaro.welcometool.ui.components.fadingEdge
 import com.antoninofaro.welcometool.utils.formatRelativeTime
 import kotlinx.coroutines.launch
@@ -81,7 +91,7 @@ fun UserListScreen(
     onUserClick: (OsmUser, UserAnalysis) -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
     var isAdvancedFiltersVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -170,14 +180,37 @@ fun UserListScreen(
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.search_mapper)) },
                     leadingIcon = {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = stringResource(R.string.search_icon_desc)
-                        )
+                        IconButton(onClick = {
+                            if (uiState.searchTerm.isNotBlank()) {
+                                viewModel.searchOsmUserOnline()
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.search_icon_desc)
+                            )
+                        }
+                    },
+                    trailingIcon = {
+                        if (uiState.searchTerm.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateSearchTerm("") }) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.clear_search_desc)
+                                )
+                            }
+                        }
                     },
                     shape = RoundedCornerShape(24.dp),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onSearch = {
+                            if (uiState.searchTerm.isNotBlank()) {
+                                viewModel.searchOsmUserOnline()
+                            }
+                        }
                     )
                 )
             }
@@ -335,96 +368,170 @@ fun UserListScreen(
                         CircularProgressIndicator()
                     }
                 } else {
+                    val lazyPagingItems = viewModel.userPagingData.collectAsLazyPagingItems()
+                    val isSearchingByName = uiState.searchTerm.trim().isNotBlank()
+                    val isEmpty = lazyPagingItems.itemCount == 0 && lazyPagingItems.loadState.refresh is LoadState.NotLoading
+
                     when {
                         uiState.errorMessage != null -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = uiState.errorMessage
-                                        ?: stringResource(R.string.search_error_fallback),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error,
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier.padding(24.dp)
-                                )
-                            }
-                        }
-
-                        uiState.users.isEmpty() -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (uiState.searchTerm.isNotBlank() || uiState.minChanges > 0 || uiState.filterIsNewcomer || uiState.filterIsReturning || uiState.filterIsPowerUser) {
-                                        stringResource(
-                                            R.string.no_results_msg,
-                                            uiState.searchTerm.trim()
-                                        )
-                                    } else {
-                                        stringResource(R.string.empty_users_msg)
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(24.dp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        else -> {
-                            val isSearchingByName = uiState.searchTerm.trim().isNotBlank()
-
-                            LazyColumn(
-                                state = listState,
-                                contentPadding = PaddingValues(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(
-                                    items = uiState.users,
-                                    key = { it.user.id },
-                                    contentType = { "user_item" }
-                                ) { userModel ->
-                                    UserListItem(
-                                        user = userModel.user,
-                                        analysis = userModel.analysis,
-                                        osmchaLastChecked = userModel.osmchaLastChecked,
-                                        onClick = onUserClick
+                                ) {
+                                    Text(
+                                        text = uiState.errorMessage
+                                            ?: stringResource(R.string.search_error_fallback),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
                                     )
-                                }
-
-                                item(key = "users_footer") {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        if (!isSearchingByName) {
-                                            Button(
-                                                onClick = { viewModel.loadMoreUsers() },
-                                                enabled = !uiState.isPaging,
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.height(48.dp)
-                                            ) {
-                                                Text(
-                                                    if (uiState.isPaging) stringResource(R.string.loading_label) else stringResource(
-                                                        R.string.load_more_btn
-                                                    )
-                                                )
-                                            }
-                                        }
-
-                                        if (uiState.hasReachedEnd) {
+                                    if (uiState.searchTerm.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Button(
+                                            onClick = { viewModel.searchOsmUserOnline() }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Search,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = stringResource(R.string.end_of_list),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                stringResource(
+                                                    R.string.search_osm_online_btn,
+                                                    uiState.searchTerm.trim()
+                                                )
                                             )
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        isEmpty -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.padding(24.dp)
+                                ) {
+                                    Text(
+                                        text = if (uiState.searchTerm.isNotBlank() || uiState.minChanges > 0 || uiState.filterIsNewcomer || uiState.filterIsReturning || uiState.filterIsPowerUser) {
+                                            stringResource(
+                                                R.string.no_results_msg,
+                                                uiState.searchTerm.trim()
+                                            )
+                                        } else {
+                                            stringResource(R.string.empty_users_msg)
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (uiState.searchTerm.isNotBlank()) {
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Button(
+                                            onClick = { viewModel.searchOsmUserOnline() }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Search,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                stringResource(
+                                                    R.string.search_osm_online_btn,
+                                                    uiState.searchTerm.trim()
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = listState,
+                                    contentPadding = PaddingValues(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    items(
+                                        count = lazyPagingItems.itemCount,
+                                        key = lazyPagingItems.itemKey { it.user.id }
+                                    ) { index ->
+                                        val userModel = lazyPagingItems[index]
+                                        if (userModel != null) {
+                                            UserListItem(
+                                                user = userModel.user,
+                                                analysis = userModel.analysis,
+                                                osmchaLastChecked = userModel.osmchaLastChecked,
+                                                onClick = onUserClick
+                                            )
+                                        }
+                                    }
+
+                                    item(key = "users_footer") {
+                                        val appendState = lazyPagingItems.loadState.append
+                                        when (appendState) {
+                                            is LoadState.Loading -> {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 16.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator()
+                                                }
+                                            }
+                                            is LoadState.NotLoading -> {
+                                                if (!isSearchingByName && appendState.endOfPaginationReached) {
+                                                    Text(
+                                                        text = stringResource(R.string.end_of_list),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(vertical = 16.dp)
+                                                            .wrapContentSize(Alignment.Center)
+                                                    )
+                                                }
+                                            }
+                                            is LoadState.Error -> {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 16.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = stringResource(
+                                                            R.string.error_loading_format,
+                                                            appendState.error.message ?: ""
+                                                        ),
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                VerticalScrollbar(
+                                    listState = listState,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .fillMaxHeight()
+                                        .padding(end = 4.dp)
+                                )
                             }
                         }
                     }
@@ -500,45 +607,32 @@ private fun UserListItem(
                     modifier = Modifier.padding(top = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (analysis.isNewcomer) {
-                        SuggestionChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    stringResource(R.string.status_newcomer),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            enabled = false,
-                            shape = RoundedCornerShape(8.dp)
-                        )
+                    val (statusRes, statusColor, statusOnColor) = when {
+                        analysis.isNewcomer -> Triple(R.string.status_newcomer, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+                        analysis.isReturning -> Triple(R.string.status_returning, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                        analysis.isPowerUser -> Triple(R.string.status_power_user, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
+                        else -> Triple(R.string.status_regular, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (analysis.isReturning) {
-                        SuggestionChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    stringResource(R.string.status_returning),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            enabled = false,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                    }
-                    if (analysis.isPowerUser) {
-                        SuggestionChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    stringResource(R.string.status_power_user),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            enabled = false,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                    }
+
+                    AssistChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                stringResource(statusRes),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = statusColor,
+                            labelColor = statusOnColor,
+                            disabledContainerColor = statusColor,
+                            disabledLabelColor = statusOnColor
+                        ),
+                        border = AssistChipDefaults.assistChipBorder(enabled = true, borderColor = androidx.compose.ui.graphics.Color.Transparent)
+                    )
+                    
                     if (analysis.isWelcomed) {
                         AssistChip(
                             onClick = {},

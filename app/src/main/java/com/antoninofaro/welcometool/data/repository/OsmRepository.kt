@@ -42,7 +42,7 @@ class OsmRepository @Inject constructor(
      * @return A [Result] containing a list of [OsmChangeset] objects if successful, or an error state.
      */
     suspend fun fetchRecentChangesets(
-        bbox: String = Constants.ITALY_BBOX,
+        bbox: String = Constants.WORLD_BBOX,
         timeRange: String? = null,
         limit: Int? = null
     ): Result<List<OsmChangeset>> {

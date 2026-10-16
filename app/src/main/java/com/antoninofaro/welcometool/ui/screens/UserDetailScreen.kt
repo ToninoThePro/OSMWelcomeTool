@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbsUpDown
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -159,22 +158,63 @@ fun UserDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            AssistChip(
-                onClick = {},
-                label = { Text(stringResource(R.string.user_id_chip, user.id)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AssistChip(
+                    onClick = {},
+                    label = { Text(stringResource(R.string.user_id_chip, user.id)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = AssistChipDefaults.assistChipColors(
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        leadingIconContentColor = MaterialTheme.colorScheme.primary
                     )
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = AssistChipDefaults.assistChipColors(
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    leadingIconContentColor = MaterialTheme.colorScheme.primary
                 )
-            )
+
+                val (statusRes, statusColor, statusOnColor) = when {
+                    analysis.isNewcomer -> Triple(
+                        R.string.status_newcomer,
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    analysis.isReturning -> Triple(
+                        R.string.status_returning,
+                        MaterialTheme.colorScheme.secondaryContainer,
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    analysis.isPowerUser -> Triple(
+                        R.string.status_power_user,
+                        MaterialTheme.colorScheme.tertiaryContainer,
+                        MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    else -> Triple(
+                        R.string.status_regular,
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                AssistChip(
+                    onClick = {},
+                    label = { Text(stringResource(statusRes), fontWeight = FontWeight.Bold) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = statusColor,
+                        labelColor = statusOnColor,
+                        disabledContainerColor = statusColor,
+                        disabledLabelColor = statusOnColor
+                    ),
+                    border = AssistChipDefaults.assistChipBorder(enabled = true, borderColor = Color.Transparent)
+                )
+            }
 
             if (!user.description.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(20.dp))
@@ -336,50 +376,7 @@ fun UserDetailScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Stats Cards
-            Text(
-                text = stringResource(R.string.profile_analysis_section).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 1.2.sp
-            )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatusCard(
-                    modifier = Modifier.weight(1f),
-                    title = stringResource(R.string.status_newcomer),
-                    isActive = analysis.isNewcomer,
-                    icon = Icons.Default.Star,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                StatusCard(
-                    modifier = Modifier.weight(1f),
-                    title = stringResource(R.string.status_returning),
-                    isActive = analysis.isReturning,
-                    icon = Icons.Default.Refresh,
-                    color = MaterialTheme.colorScheme.secondary,
-                )
-                StatusCard(
-                    modifier = Modifier.weight(1f),
-                    title = stringResource(R.string.status_power_user),
-                    isActive = analysis.isPowerUser,
-                    icon = Icons.Default.Star,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
 
             // Details List
             Card(
@@ -700,15 +697,6 @@ fun UserDetailScreen(
                             uiModel = changeset,
                             onClick = { onChangesetClick(changeset) }
                         )
-                    }
-
-                    if (recentChangesets.size < 3) {
-                        TextButton(
-                            onClick = onLoadMoreChangesets,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.load_more_changesets))
-                        }
                     }
 
                     Button(

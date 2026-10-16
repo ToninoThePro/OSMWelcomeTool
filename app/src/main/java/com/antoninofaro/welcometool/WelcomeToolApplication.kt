@@ -34,6 +34,8 @@ class WelcomeToolApplication : Application(), Configuration.Provider, SingletonI
     override fun onCreate() {
         super.onCreate()
 
+        org.maplibre.android.MapLibre.getInstance(this)
+
         notificationHelper.createNotificationChannel()
 
         if (BuildConfig.DEBUG) {

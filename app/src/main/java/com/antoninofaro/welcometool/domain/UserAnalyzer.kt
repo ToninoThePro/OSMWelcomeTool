@@ -11,6 +11,7 @@ data class UserAnalysis(
     val isNewcomer: Boolean,
     val isReturning: Boolean,
     val isPowerUser: Boolean,
+    val isRegular: Boolean,
     val totalEdits: Int,
     val firstChangesetDate: String?,
     val lastActiveDate: String?,
@@ -41,10 +42,38 @@ object UserAnalyzer {
         val accountAge = now - accountCreated
         val totalEdits = user.changesets?.count ?: 0
 
+        // Solution 3: Checking if the user has a recent > 365 days gap between consecutive edits
+        val sortedDates = userChangesets.mapNotNull { parseIsoDateToMillis(it.createdAt) }.sortedDescending()
+        var hasRecentLargeGap = false
+        for (i in 0 until sortedDates.size - 1) {
+            val newer = sortedDates[i]
+            val older = sortedDates[i + 1]
+            if (newer - older > RETURNING_DAYS_MS) {
+                if (now - newer < NEWCOMER_DAYS_MS) {
+                    hasRecentLargeGap = true
+                }
+                break // Only care about the most recent gap
+            }
+        }
+        if (sortedDates.size == 1 && accountAge > RETURNING_DAYS_MS) {
+             val onlyEdit = sortedDates[0]
+             if (now - onlyEdit < NEWCOMER_DAYS_MS) {
+                 hasRecentLargeGap = true
+             }
+        }
+
+        val isNewcomer = accountAge < NEWCOMER_DAYS_MS
+        val isPowerUser = totalEdits > POWER_USER_EDITS
+        val isReturning = !isNewcomer && !isPowerUser && (
+            hasRecentLargeGap || (accountAge > RETURNING_DAYS_MS && totalEdits < RETURNING_EDITS_MAX)
+        )
+        val isRegular = !isNewcomer && !isReturning && !isPowerUser
+
         return UserAnalysis(
-            isNewcomer = accountAge < NEWCOMER_DAYS_MS,
-            isReturning = accountAge > RETURNING_DAYS_MS && totalEdits < RETURNING_EDITS_MAX,
-            isPowerUser = totalEdits > POWER_USER_EDITS,
+            isNewcomer = isNewcomer,
+            isReturning = isReturning,
+            isPowerUser = isPowerUser,
+            isRegular = isRegular,
             totalEdits = totalEdits,
             firstChangesetDate = userChangesets.lastOrNull()?.createdAt,
             lastActiveDate = recentChangeset?.createdAt ?: userChangesets.firstOrNull()?.createdAt,

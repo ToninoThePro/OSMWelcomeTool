@@ -70,9 +70,15 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.room.paging)
+
+    // Paging 3
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.runtime)
@@ -107,6 +113,8 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization.converter)
     implementation(libs.okhttp)
     implementation(libs.logging.interceptor)
+    implementation(libs.sandwich)
+    implementation(libs.sandwich.retrofit)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
@@ -117,6 +125,10 @@ dependencies {
     // Image Loading (Coil 3)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+
+    // MapLibre Maps
+    implementation(libs.maplibre.android.sdk)
+    implementation(libs.ramani.maplibre)
 
     // AboutLibraries - license detection
     implementation(libs.aboutlibraries.compose.m3)

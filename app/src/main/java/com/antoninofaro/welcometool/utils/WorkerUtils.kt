@@ -31,8 +31,6 @@ object WorkerUtils {
 
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .setRequiresStorageNotLow(true)
             .build()
 
         val request = PeriodicWorkRequestBuilder<OsmSyncWorker>(safeInterval, TimeUnit.MINUTES)
@@ -53,8 +51,6 @@ object WorkerUtils {
         val workManager = WorkManager.getInstance(context)
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .setRequiresStorageNotLow(true)
             .build()
 
         val request = androidx.work.OneTimeWorkRequestBuilder<OsmSyncWorker>()

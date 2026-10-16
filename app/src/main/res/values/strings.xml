@@ -150,6 +150,8 @@
     <string name="search_icon_desc">Cerca</string>
     <string name="search_libraries_placeholder">Cerca librerie…</string>
     <string name="search_mapper">Cerca mappatore…</string>
+    <string name="search_osm_online_btn">Cerca \"%s\" su OSM</string>
+    <string name="clear_search_desc">Cancella ricerca</string>
     <string name="search_results_title">Risultati ricerca</string>
     <string name="scroll_to_top_desc">Torna in cima</string>
     <string name="selected_desc">Selezionato</string>
@@ -160,6 +162,7 @@
     <string name="show_token">Mostra token</string>
     <string name="status_newcomer">Novizio</string>
     <string name="status_power_user">Pro</string>
+    <string name="status_regular">Regolare</string>
     <string name="status_returning">Ritornato</string>
     <string name="time_hours_ago">%dh fa</string>
     <string name="time_minutes_ago">%dm fa</string>
@@ -183,7 +186,7 @@
     <string name="onboarding_welcome_desc">Uno strumento per accogliere i nuovi mappatori OpenStreetMap nella tua zona.</string>
     <string name="onboarding_choose_area_title">Scegli la tua area</string>
     <string name="onboarding_choose_area_desc">Inizia a monitorare una zona specifica cercando con Nominatim.</string>
-    <string name="onboarding_skip_btn">Salta (Italia intera)</string>
+    <string name="onboarding_skip_btn">Seleziona un\'area per continuare</string>
     <string name="onboarding_start_monitoring">Avvia monitoraggio</string>
     <string name="onboarding_notifications_title">Notifiche</string>
     <string name="onboarding_notifications_desc">Ricevi avvisi per nuovi mappatori nella zona</string>
@@ -198,10 +201,12 @@
     <string name="cache_category_osmcha">OSMCha</string>
     <string name="cache_category_nominatim">Nominatim</string>
     <string name="cache_category_avatar">Avatar (Coil)</string>
+    <string name="cache_category_map_tiles">Tasselli della Mappa (MapLibre)</string>
     <string name="cache_category_osm_api_desc">Risposte API OpenStreetMap</string>
     <string name="cache_category_nominatim_desc">Ricerche di rete Nominatim</string>
     <string name="cache_category_osmcha_desc">Chiamate e verifiche OSMCha</string>
     <string name="cache_category_avatar_desc">Immagini profilo scaricate (Coil)</string>
+    <string name="cache_category_map_tiles_desc">Cache locale dei tasselli della mappa vettoriale</string>
     <string name="cache_api_calls_title">Cache Chiamate API (Memoria Temporanea)</string>
     <string name="clear_category_cache">Svuota cache %s</string>
     <string name="cache_section">CACHE E MEMORIA</string>
@@ -235,4 +240,8 @@
     <string name="protected_data_info">Dati protetti (informativi)</string>
     <string name="local_database">Database locale (Room)</string>
     <string name="settings_preferences">Impostazioni e preferenze (DataStore)</string>
+    <string name="export_welcomed_csv">Esporta CSV utenti benvenuti</string>
+    <string name="export_welcomed_json">Esporta JSON utenti benvenuti</string>
+    <string name="export_empty">Nessun utente benvenuto da esportare</string>
+    <string name="export_error">Errore durante l\'esportazione: %s</string>
 </resources>

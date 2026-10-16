@@ -29,7 +29,7 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     val autoRefresh: Boolean = true,
     val autoRefreshInterval: Int = 30,
-    val defaultBBox: String = Constants.ITALY_BBOX,
+    val defaultBBox: String = Constants.WORLD_BBOX,
     val defaultAreaName: String = Constants.DEFAULT_AREA_NAME,
     val showNotifications: Boolean = false,
     val showNewChangesetNotifications: Boolean = false,
@@ -58,7 +58,7 @@ data class MonitoringArea(
 )
 
 private fun defaultMonitoringAreas(): List<MonitoringArea> = listOf(
-    MonitoringArea(Constants.DEFAULT_AREA_NAME, Constants.ITALY_BBOX)
+    MonitoringArea(Constants.DEFAULT_AREA_NAME, Constants.WORLD_BBOX)
 )
 
 @Singleton
@@ -138,13 +138,17 @@ class SettingsRepository @Inject constructor(
             avatar = cacheAvatar
         )
 
+        val defaultBBox = preferences[DEFAULT_BBOX] ?: Constants.WORLD_BBOX
+        val defaultAreaName = preferences[DEFAULT_AREA_NAME] ?: Constants.DEFAULT_AREA_NAME
+        val monitoringAreas = getMonitoringAreas(preferences)
+
         AppSettings(
             themeMode = preferences[THEME_MODE] ?: "system",
             dynamicColor = preferences[DYNAMIC_COLOR] ?: false,
             autoRefresh = preferences[AUTO_REFRESH] ?: true,
             autoRefreshInterval = preferences[AUTO_REFRESH_INTERVAL] ?: 30,
-            defaultBBox = preferences[DEFAULT_BBOX] ?: Constants.ITALY_BBOX,
-            defaultAreaName = preferences[DEFAULT_AREA_NAME] ?: Constants.DEFAULT_AREA_NAME,
+            defaultBBox = defaultBBox,
+            defaultAreaName = defaultAreaName,
             showNotifications = preferences[SHOW_NOTIFICATIONS] ?: false,
             showNewChangesetNotifications = preferences[SHOW_NEW_CHANGESET_NOTIFICATIONS] ?: false,
             individualChangesetNotifications = preferences[INDIVIDUAL_CHANGESET_NOTIFICATIONS] ?: false,
@@ -160,20 +164,30 @@ class SettingsRepository @Inject constructor(
             lastKnownChangesetId = preferences[LAST_KNOWN_CHANGESET_ID] ?: 0L,
             lastKnownChangesetDate = preferences[LAST_KNOWN_CHANGESET_DATE] ?: "",
             osmchaAutoRefreshDays = preferences[OSMCHA_AUTO_REFRESH_DAYS] ?: 1,
-            monitoringAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON]),
+            monitoringAreas = monitoringAreas,
             isOnboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
             isLoaded = true,
         )
     }
 
+    private fun getMonitoringAreas(preferences: Preferences): List<MonitoringArea> {
+        val decoded = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON])
+        if (decoded.isNotEmpty()) {
+            return decoded
+        }
+
+        val defaultBBox = preferences[DEFAULT_BBOX] ?: Constants.WORLD_BBOX
+        val defaultAreaName = preferences[DEFAULT_AREA_NAME] ?: Constants.DEFAULT_AREA_NAME
+        return listOf(MonitoringArea(defaultAreaName, defaultBBox))
+    }
+
     private fun decodeMonitoringAreas(serialized: String?): List<MonitoringArea> {
-        if (serialized.isNullOrBlank()) return defaultMonitoringAreas()
+        if (serialized.isNullOrBlank()) return emptyList()
         return try {
             json.decodeFromString<List<MonitoringArea>>(serialized)
-                .ifEmpty { defaultMonitoringAreas() }
         } catch (e: Exception) {
-            Timber.w(e, "Invalid monitoring areas payload, using defaults")
-            defaultMonitoringAreas()
+            Timber.w(e, "Invalid monitoring areas payload")
+            emptyList()
         }
     }
 
@@ -196,7 +210,7 @@ class SettingsRepository @Inject constructor(
 
     suspend fun addMonitoringArea(area: MonitoringArea) {
         dataStore.edit { preferences ->
-            val currentAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON])
+            val currentAreas = getMonitoringAreas(preferences)
             if (currentAreas.none { it.bbox == area.bbox }) {
                 preferences[MONITORING_AREAS_JSON] = encodeMonitoringAreas(currentAreas + area)
             }
@@ -205,26 +219,29 @@ class SettingsRepository @Inject constructor(
 
     suspend fun removeMonitoringArea(bbox: String) {
         dataStore.edit { preferences ->
-            val currentAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON])
+            val currentAreas = getMonitoringAreas(preferences)
             val updatedAreas = currentAreas.filterNot { it.bbox == bbox }
-            val safeAreas = if (updatedAreas.isEmpty()) defaultMonitoringAreas() else updatedAreas
+            if (updatedAreas.isNotEmpty()) {
+                preferences[MONITORING_AREAS_JSON] = encodeMonitoringAreas(updatedAreas)
 
-            preferences[MONITORING_AREAS_JSON] = encodeMonitoringAreas(safeAreas)
-
-            if (preferences[DEFAULT_BBOX] == bbox) {
-                val fallback = safeAreas.first()
-                preferences[DEFAULT_BBOX] = fallback.bbox
-                preferences[DEFAULT_AREA_NAME] = fallback.name
+                if (preferences[DEFAULT_BBOX] == bbox) {
+                    val fallback = updatedAreas.first()
+                    preferences[DEFAULT_BBOX] = fallback.bbox
+                    preferences[DEFAULT_AREA_NAME] = fallback.name
+                }
             }
         }
     }
 
     suspend fun setDefaultMonitoringArea(area: MonitoringArea) {
         dataStore.edit { preferences ->
-            val currentAreas = decodeMonitoringAreas(preferences[MONITORING_AREAS_JSON])
-            if (currentAreas.none { it.bbox == area.bbox }) {
-                preferences[MONITORING_AREAS_JSON] = encodeMonitoringAreas(currentAreas + area)
+            val currentAreas = getMonitoringAreas(preferences)
+            val updatedAreas = if (currentAreas.none { it.bbox == area.bbox }) {
+                currentAreas + area
+            } else {
+                currentAreas
             }
+            preferences[MONITORING_AREAS_JSON] = encodeMonitoringAreas(updatedAreas)
             preferences[DEFAULT_BBOX] = area.bbox
             preferences[DEFAULT_AREA_NAME] = area.name
         }
@@ -320,6 +337,15 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateOnboardingCompleted(completed: Boolean) =
         updatePreference(ONBOARDING_COMPLETED, completed)
+
+    suspend fun completeOnboarding(area: MonitoringArea) {
+        dataStore.edit { preferences ->
+            preferences[MONITORING_AREAS_JSON] = encodeMonitoringAreas(listOf(area))
+            preferences[DEFAULT_BBOX] = area.bbox
+            preferences[DEFAULT_AREA_NAME] = area.name
+            preferences[ONBOARDING_COMPLETED] = true
+        }
+    }
 
     suspend fun resetToDefaults() {
         dataStore.edit { preferences ->

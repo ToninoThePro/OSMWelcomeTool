@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.antoninofaro.welcometool.data.entity.ChangesetEntity
 import com.antoninofaro.welcometool.data.model.ChangedElement
 import com.antoninofaro.welcometool.data.model.ChangedElementGroup
+import com.antoninofaro.welcometool.ui.components.BBoxMiniMap
 import com.antoninofaro.welcometool.data.model.ChangesetUiModel
 import com.antoninofaro.welcometool.ui.components.fadingEdge
 import com.antoninofaro.welcometool.ui.theme.WelcomeToolTheme
@@ -204,15 +205,12 @@ fun ChangesetDetailScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Map Area", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("Map preview not available (TODO)", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    BBoxMiniMap(
+                        minLon = entity.minLon,
+                        minLat = entity.minLat,
+                        maxLon = entity.maxLon,
+                        maxLat = entity.maxLat
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("BBox: ${entity.minLon}, ${entity.minLat}, ${entity.maxLon}, ${entity.maxLat}", style = MaterialTheme.typography.bodySmall)
                 }

@@ -155,6 +155,8 @@
     <string name="search_icon_desc">Search</string>
     <string name="search_libraries_placeholder">Search libraries…</string>
     <string name="search_mapper">Search mapper…</string>
+    <string name="search_osm_online_btn">Search \"%s\" on OSM</string>
+    <string name="clear_search_desc">Clear search</string>
     <string name="search_results_title">Search results</string>
     <string name="scroll_to_top_desc">Scroll to top</string>
     <string name="selected_desc">Selected</string>
@@ -165,6 +167,7 @@
     <string name="show_token">Show token</string>
     <string name="status_newcomer">Newcomer</string>
     <string name="status_power_user">Pro</string>
+    <string name="status_regular">Regular</string>
     <string name="status_returning">Returning</string>
     <string name="time_hours_ago">%dh ago</string>
     <string name="time_minutes_ago">%dm ago</string>
@@ -188,7 +191,7 @@
     <string name="onboarding_welcome_desc">A tool to welcome new OpenStreetMap mappers in your area.</string>
     <string name="onboarding_choose_area_title">Choose your area</string>
     <string name="onboarding_choose_area_desc">Start monitoring a specific area by searching with Nominatim.</string>
-    <string name="onboarding_skip_btn">Skip (All Italy)</string>
+    <string name="onboarding_skip_btn">Select an area to continue</string>
     <string name="onboarding_start_monitoring">Start monitoring</string>
     <string name="onboarding_notifications_title">Notifications</string>
     <string name="onboarding_notifications_desc">Receive alerts for new mappers in the area</string>
@@ -200,10 +203,12 @@
     <string name="cache_category_osmcha">OSMCha</string>
     <string name="cache_category_nominatim">Nominatim</string>
     <string name="cache_category_avatar">Avatar (Coil)</string>
+    <string name="cache_category_map_tiles">Map Tiles (MapLibre)</string>
     <string name="cache_category_osm_api_desc">OpenStreetMap API responses</string>
     <string name="cache_category_nominatim_desc">Nominatim network searches</string>
     <string name="cache_category_osmcha_desc">OSMCha calls and checks</string>
     <string name="cache_category_avatar_desc">Downloaded profile images (Coil)</string>
+    <string name="cache_category_map_tiles_desc">Local cache of vector map tiles</string>
     <string name="cache_api_calls_title">API Calls Cache (Temporary Storage)</string>
     <string name="clear_category_cache">Clear %s cache</string>
     <string name="cache_section">CACHE &amp; STORAGE</string>
@@ -235,4 +240,8 @@
     <string name="protected_data_info">Protected data (informational)</string>
     <string name="local_database">Local Database (Room)</string>
     <string name="settings_preferences">Settings &amp; Preferences (DataStore)</string>
+    <string name="export_welcomed_csv">Export welcomed users CSV</string>
+    <string name="export_welcomed_json">Export welcomed users JSON</string>
+    <string name="export_empty">No welcomed users to export</string>
+    <string name="export_error">Error during export: %s</string>
 </resources>

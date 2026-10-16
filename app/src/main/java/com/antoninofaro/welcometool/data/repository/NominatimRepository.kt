@@ -19,7 +19,7 @@ class NominatimRepository @Inject constructor(
 
         return withContext(Dispatchers.IO) {
             safeApiCall {
-                nominatimApiService.searchPlaces(query)
+                val apiResults = nominatimApiService.searchPlaces(query)
                     .mapNotNull { place ->
                         val bbox = place.boundingBox.toOsmBboxOrNull() ?: return@mapNotNull null
                         MonitoringArea(
@@ -27,6 +27,15 @@ class NominatimRepository @Inject constructor(
                             bbox = bbox
                         )
                     }
+
+                val trimmed = query.trim().lowercase()
+                val isGlobalQuery = trimmed in setOf("world", "mondo", "earth", "globo", "global", "pianeta", "tutto")
+
+                if (isGlobalQuery && apiResults.none { it.bbox == com.antoninofaro.welcometool.utils.Constants.WORLD_BBOX }) {
+                    listOf(MonitoringArea(com.antoninofaro.welcometool.utils.Constants.DEFAULT_AREA_NAME, com.antoninofaro.welcometool.utils.Constants.WORLD_BBOX)) + apiResults
+                } else {
+                    apiResults
+                }
             }.also { result ->
                 if (result.isError) {
                     Timber.e(result.exceptionOrNull(), "Errore ricerca aree Nominatim: $query")

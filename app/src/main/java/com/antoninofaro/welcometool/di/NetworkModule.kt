@@ -13,7 +13,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
-import okhttp3.CertificatePinner
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -44,22 +43,11 @@ object NetworkModule {
     @Singleton
     @BaseClient
     fun provideBaseOkHttpClient(): OkHttpClient {
-        val certificatePinner = CertificatePinner.Builder()
-            .add("api.openstreetmap.org", "sha256/LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=")
-            .add("api.openstreetmap.org", "sha256/fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=")
-            .add("nominatim.openstreetmap.org", "sha256/LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=")
-            .add("nominatim.openstreetmap.org", "sha256/fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=")
-            .add("osmcha.org", "sha256/s/tdAOmUzd8syaTuqfgGvFcn6DzA5Cmb+Vby1ST+U3Y=")
-            .add("osmcha.org", "sha256/sCkq5UWXjg+7mKu9lMhhYF5bGLsy7VI/UNW3tccdR7w=")
-            .add("osmcha.org", "sha256/diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=")
-            .build()
-            
         val builder = OkHttpClient.Builder()
             .connectTimeout(OSM_CONNECT_TIMEOUT, TimeUnit.SECONDS)
             .readTimeout(OSM_READ_TIMEOUT, TimeUnit.SECONDS)
             .writeTimeout(OSM_WRITE_TIMEOUT, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
-            .certificatePinner(certificatePinner)
             .addInterceptor(RateLimitInterceptor())
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()

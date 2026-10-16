@@ -1,6 +1,6 @@
 package com.antoninofaro.welcometool.utils
 
 object Constants {
-    const val DEFAULT_AREA_NAME = "Italia"
-    const val ITALY_BBOX = "6.6,35.3,18.6,47.2"
+    const val DEFAULT_AREA_NAME = "World"
+    const val WORLD_BBOX = "-180.0,-90.0,180.0,90.0"
 }

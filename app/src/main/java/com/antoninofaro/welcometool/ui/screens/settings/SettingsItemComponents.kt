@@ -1,5 +1,7 @@
 package com.antoninofaro.welcometool.ui.screens.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,6 +19,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Api
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
@@ -65,6 +69,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antoninofaro.welcometool.R
+import com.antoninofaro.welcometool.ui.components.BBoxMiniMap
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
 import com.antoninofaro.welcometool.data.repository.normalizeOsmchaToken
 import com.antoninofaro.welcometool.utils.Constants
@@ -168,45 +173,92 @@ fun SavedAreaItem(
     area: MonitoringArea,
     isDefault: Boolean,
     canRemove: Boolean,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
     onSetDefault: () -> Unit,
     onRemove: () -> Unit
 ) {
-    ListItem(
-        leadingContent = {
-            Icon(
-                if (isDefault) Icons.Default.Star else Icons.Default.LocationOn,
-                contentDescription = null,
-                tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-            )
-        },
-        headlineContent = {
-            Text(
-                area.name,
-                fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium
-            )
-        },
-        supportingContent = { Text(area.bbox, style = MaterialTheme.typography.bodySmall) },
-        trailingContent = {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (!isDefault) {
-                    TextButton(onClick = onSetDefault) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isDefault) Icons.Default.Star else Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
                         Text(
-                            stringResource(R.string.set_default),
-                            style = MaterialTheme.typography.labelMedium
+                            text = area.name,
+                            fontWeight = if (isDefault) FontWeight.Bold else FontWeight.Medium,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = area.bbox,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                if (canRemove) {
-                    IconButton(onClick = onRemove) {
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!isDefault) {
+                        TextButton(onClick = onSetDefault) {
+                            Text(
+                                stringResource(R.string.set_default),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+                    if (canRemove) {
+                        IconButton(onClick = onRemove) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.remove_area_desc),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    IconButton(onClick = onToggleExpand) {
                         Icon(
-                            Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.remove_area_desc),
-                            tint = MaterialTheme.colorScheme.error
+                            if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    )
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    BBoxMiniMap(
+                        bboxString = area.bbox,
+                        label = "BBox: ${area.bbox}"
+                    )
+                }
+            }
+        }
+    }
 }

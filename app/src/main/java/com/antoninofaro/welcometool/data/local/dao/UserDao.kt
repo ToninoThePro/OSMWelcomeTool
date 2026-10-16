@@ -1,5 +1,6 @@
 package com.antoninofaro.welcometool.data.local.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -71,6 +72,33 @@ interface UserDao {
         limit: Int,
         offset: Int
     ): List<UserAreaActivityWithUser>
+
+    @Query(
+        """
+        SELECT u.*, a.bbox AS bbox, a.lastChangesetDate AS lastChangesetDate,
+               a.lastChangesetId AS lastChangesetId, a.lastUpdated AS areaLastUpdated
+        FROM users u
+        INNER JOIN user_area_activity a ON u.id = a.userId
+        WHERE a.bbox = :bbox 
+          AND (:searchTerm = '' OR u.displayName LIKE '%' || :searchTerm || '%' ESCAPE '\')
+          AND u.totalEdits >= :minEdits
+          AND (
+            (:filterNewcomer = 0 AND :filterReturning = 0 AND :filterPowerUser = 0) OR
+            (:filterNewcomer = 1 AND u.isNewcomer = 1) OR
+            (:filterReturning = 1 AND u.isReturning = 1) OR
+            (:filterPowerUser = 1 AND u.isPowerUser = 1)
+          )
+        ORDER BY a.lastChangesetDate DESC, a.lastChangesetId DESC, a.lastUpdated DESC
+        """
+    )
+    abstract fun getUsersForBBoxPagingSource(
+        bbox: String,
+        searchTerm: String = "",
+        minEdits: Int = 0,
+        filterNewcomer: Boolean = false,
+        filterReturning: Boolean = false,
+        filterPowerUser: Boolean = false
+    ): PagingSource<Int, UserAreaActivityWithUser>
 
     @Query(
         """

@@ -1,6 +1,7 @@
 package com.antoninofaro.welcometool.ui.screens
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antoninofaro.welcometool.BuildConfig
@@ -10,6 +11,7 @@ import com.antoninofaro.welcometool.data.cache.CacheCategory
 import com.antoninofaro.welcometool.data.cache.CacheRegistry
 import com.antoninofaro.welcometool.data.cache.CacheSizeCalculator
 import com.antoninofaro.welcometool.data.cache.CacheSizesResult
+import com.antoninofaro.welcometool.data.local.AppDatabase
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
 import com.antoninofaro.welcometool.data.repository.NominatimRepository
@@ -17,8 +19,10 @@ import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmChaRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.repository.VerifyTokenResult
+import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
 import com.antoninofaro.welcometool.utils.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -28,6 +32,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
 
 sealed interface TokenVerificationState {
@@ -43,10 +49,12 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val nominatimRepository: NominatimRepository,
     private val notifiedUserStorage: NotifiedUserStorage,
+    private val welcomedUserStorage: WelcomedUserStorage,
     private val osmChaRepository: OsmChaRepository,
     private val notificationHelper: NotificationHelper,
     private val cacheRegistry: CacheRegistry,
-    private val cacheSizeCalculator: CacheSizeCalculator
+    private val cacheSizeCalculator: CacheSizeCalculator,
+    private val appDatabase: AppDatabase
 ) : ViewModel() {
 
     private val _nominatimResults = MutableStateFlow<List<MonitoringArea>>(emptyList())
@@ -127,8 +135,7 @@ class SettingsViewModel @Inject constructor(
 
 
     suspend fun completeOnboarding(area: MonitoringArea) {
-        settingsRepository.setDefaultMonitoringArea(area)
-        settingsRepository.updateOnboardingCompleted(true)
+        settingsRepository.completeOnboarding(area)
     }
 
     fun searchAreas(query: String) {
@@ -312,6 +319,99 @@ class SettingsViewModel @Inject constructor(
 
     fun getTokenVerifiedMessage(username: String): String =
         application.getString(R.string.token_verified_snackbar, username)
+
+    private val _settingsMessage = MutableStateFlow<String?>(null)
+    val settingsMessage: StateFlow<String?> = _settingsMessage.asStateFlow()
+
+    fun clearSettingsMessage() {
+        _settingsMessage.value = null
+    }
+
+    enum class ExportFormat {
+        CSV, JSON
+    }
+
+    fun exportWelcomedUsers(context: android.content.Context, format: ExportFormat) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val welcomedIds = welcomedUserStorage.getAllWelcomedIds()
+                if (welcomedIds.isEmpty()) {
+                    _settingsMessage.value = application.getString(R.string.export_empty)
+                    return@launch
+                }
+                val users = appDatabase.userDao().getUsersByIds(welcomedIds.map { it.toLong() }.toSet())
+                val usersMap = users.associateBy { it.id }
+
+                val content = when (format) {
+                    ExportFormat.JSON -> {
+                        val jsonArray = JSONArray()
+                        welcomedIds.forEach { idStr ->
+                            val userId = idStr.toLongOrNull() ?: 0L
+                            val user = usersMap[userId]
+                            val obj = JSONObject().apply {
+                                put("id", userId)
+                                if (user != null) {
+                                    put("displayName", user.displayName)
+                                    put("accountCreated", user.accountCreated)
+                                    put("accountAgeDays", user.accountAge)
+                                    put("totalEdits", user.totalEdits)
+                                    put("description", user.description)
+                                    put("isNewcomer", user.isNewcomer)
+                                    put("isReturning", user.isReturning)
+                                    put("isPowerUser", user.isPowerUser)
+                                    put("isWelcomed", true)
+                                    put("osmchaLikes", user.osmchaLikes)
+                                    put("osmchaDislikes", user.osmchaDislikes)
+                                }
+                            }
+                            jsonArray.put(obj)
+                        }
+                        jsonArray.toString(2)
+                    }
+                    ExportFormat.CSV -> {
+                        val sb = StringBuilder()
+                        sb.append("id,display_name,account_created,account_age_days,total_edits,is_newcomer,is_returning,is_power_user,osmcha_likes,osmcha_dislikes,description\n")
+                        welcomedIds.forEach { idStr ->
+                            val userId = idStr.toLongOrNull() ?: 0L
+                            val user = usersMap[userId]
+                            val displayName = escapeCsv(user?.displayName ?: "")
+                            val accountCreated = user?.accountCreated ?: 0L
+                            val accountAge = user?.accountAge ?: 0
+                            val totalEdits = user?.totalEdits ?: 0
+                            val isNewcomer = user?.isNewcomer ?: false
+                            val isReturning = user?.isReturning ?: false
+                            val isPowerUser = user?.isPowerUser ?: false
+                            val likes = user?.osmchaLikes ?: 0
+                            val dislikes = user?.osmchaDislikes ?: 0
+                            val desc = escapeCsv(user?.description ?: "")
+                            sb.append("$userId,$displayName,$accountCreated,$accountAge,$totalEdits,$isNewcomer,$isReturning,$isPowerUser,$likes,$dislikes,$desc\n")
+                        }
+                        sb.toString()
+                    }
+                }
+
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Welcomed Users Export (${format.name})")
+                    putExtra(Intent.EXTRA_TEXT, content)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                val chooser = Intent.createChooser(shareIntent, "Export Welcomed Users").apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(chooser)
+            } catch (e: Exception) {
+                _settingsMessage.value = application.getString(R.string.export_error, e.localizedMessage ?: "Unknown error")
+            }
+        }
+    }
+
+    private fun escapeCsv(value: String): String {
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\""
+        }
+        return value
+    }
 
     fun clearAllCaches() {
         viewModelScope.launch {

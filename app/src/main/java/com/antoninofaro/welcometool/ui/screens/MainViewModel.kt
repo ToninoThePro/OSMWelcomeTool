@@ -21,6 +21,10 @@ import com.antoninofaro.welcometool.domain.UserAnalysis
 import com.antoninofaro.welcometool.domain.UserAnalyzer
 import com.antoninofaro.welcometool.utils.ConnectivityObserver
 import com.antoninofaro.welcometool.utils.Constants
+import com.antoninofaro.welcometool.utils.toAnalysis
+import com.antoninofaro.welcometool.utils.toEntity
+import com.antoninofaro.welcometool.utils.toOsmUser
+import com.antoninofaro.welcometool.utils.toUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -29,7 +33,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -53,7 +66,7 @@ data class MainUiState(
     val users: List<UserUiModel> = emptyList(),
     val errorMessage: String? = null,
     val hasReachedEnd: Boolean = false,
-    val selectedBBox: String = Constants.ITALY_BBOX,
+    val selectedBBox: String = Constants.WORLD_BBOX,
     val searchTerm: String = "",
     val minChanges: Int = 0,
     val filterIsNewcomer: Boolean = false,
@@ -98,6 +111,35 @@ class MainViewModel @Inject constructor(
             initialValue = AppSettings()
         )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val userPagingData: Flow<PagingData<UserUiModel>> = _uiState
+        .flatMapLatest { state ->
+            val term = state.searchTerm.trim()
+                .replace("\\", "\\\\")
+                .replace("_", "\\_")
+                .replace("%", "\\%")
+            Pager(
+                config = PagingConfig(
+                    pageSize = LOCAL_PAGE_SIZE,
+                    enablePlaceholders = false
+                ),
+                pagingSourceFactory = {
+                    userDao.getUsersForBBoxPagingSource(
+                        bbox = state.selectedBBox,
+                        searchTerm = if (term.isBlank()) "%" else "%$term%",
+                        minEdits = state.minChanges,
+                        filterNewcomer = state.filterIsNewcomer,
+                        filterReturning = state.filterIsReturning,
+                        filterPowerUser = state.filterIsPowerUser
+                    )
+                }
+            ).flow
+        }
+        .map { pagingData ->
+            pagingData.map { it.toUiModel() }
+        }
+        .cachedIn(viewModelScope)
+
     suspend fun getRecentChangesetsForUser(uid: Long, limit: Int = 3): List<com.antoninofaro.welcometool.data.model.ChangesetUiModel> {
         val entities = changesetDao.getChangesetsForBBoxFiltered(
             bbox = _uiState.value.selectedBBox,
@@ -111,20 +153,7 @@ class MainViewModel @Inject constructor(
         return entities.map { it.toUiModel(_uiState.value.isOnline) }
     }
 
-    private fun com.antoninofaro.welcometool.data.entity.ChangesetEntity.toUiModel(isOnline: Boolean): com.antoninofaro.welcometool.data.model.ChangesetUiModel {
-        val reasonsList = try {
-            if (!osmchaReasonsJson.isNullOrBlank()) {
-                kotlinx.serialization.json.Json.decodeFromString<List<String>>(osmchaReasonsJson)
-            } else emptyList()
-        } catch (_: Exception) {
-            emptyList()
-        }
-        return com.antoninofaro.welcometool.data.model.ChangesetUiModel(
-            entity = this,
-            reasons = reasonsList,
-            isOnline = isOnline
-        )
-    }
+
 
     private val welcomedMutex = Mutex()
     private val toggleMutex = Mutex()
@@ -135,8 +164,8 @@ class MainViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val savedBBox = settingsRepository.settingsFlow.first().defaultBBox
-            if (savedBBox != Constants.ITALY_BBOX) {
+            val savedBBox = settingsRepository.settingsFlow.first { it.isLoaded }.defaultBBox
+            if (_uiState.value.selectedBBox != savedBBox) {
                 _uiState.value = _uiState.value.copy(selectedBBox = savedBBox)
             }
             loadData(forceRefresh = true)
@@ -452,32 +481,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun UserEntity.toUiModel(): UserUiModel {
-        val osmUser = OsmUser(
-            id = this.id,
-            displayName = this.displayName,
-            accountCreated = this.accountCreated,
-            description = this.description,
-            img = this.imgUrl?.let { UserImage(it) },
-            changesets = CountWrapper(this.totalEdits),
-            roles = emptyList(),
-            traces = null
-        )
 
-        val analysis = UserAnalysis(
-            accountAge = this.accountAge,
-            isNewcomer = this.isNewcomer,
-            isReturning = this.isReturning,
-            isPowerUser = this.isPowerUser,
-            totalEdits = this.totalEdits,
-            firstChangesetDate = this.firstChangesetDate,
-            lastActiveDate = this.lastActiveDate,
-            osmchaLikes = this.osmchaLikes,
-            osmchaDislikes = this.osmchaDislikes,
-            isWelcomed = this.isWelcomed
-        )
-        return UserUiModel(osmUser, analysis, this.lastUpdated, this.osmchaLastChecked)
-    }
 
     fun loadOsmchaForUser(userId: Long) {
         viewModelScope.launch {
@@ -587,11 +591,105 @@ class MainViewModel @Inject constructor(
     }
 
     fun updateSearchTerm(term: String) {
-        _uiState.value = _uiState.value.copy(searchTerm = term)
+        _uiState.value = _uiState.value.copy(searchTerm = term, errorMessage = null)
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(300)
             reloadLocalData()
+        }
+    }
+
+    fun searchOsmUserOnline(query: String? = null) {
+        val term = (query ?: _uiState.value.searchTerm).trim()
+        if (term.isBlank()) return
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                errorMessage = null
+            )
+
+            try {
+                val localUsers = userDao.getUsersForBBoxFiltered(
+                    bbox = _uiState.value.selectedBBox,
+                    searchTerm = term,
+                    minEdits = 0,
+                    filterNewcomer = false,
+                    filterReturning = false,
+                    filterPowerUser = false,
+                    limit = 10,
+                    offset = 0
+                )
+
+                val exactLocalMatch = localUsers.find {
+                    it.user.displayName.equals(term, ignoreCase = true)
+                }
+
+                if (exactLocalMatch != null) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        searchTerm = exactLocalMatch.user.displayName,
+                        errorMessage = null
+                    )
+                    reloadLocalData()
+                    return@launch
+                }
+
+                if (!_uiState.value.isOnline) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = application.getString(R.string.offline_banner)
+                    )
+                    return@launch
+                }
+
+                val searchResult = repository.searchUserByUsername(term)
+                if (searchResult is Result.Success) {
+                    val osmUser = searchResult.data
+                    val welcomedIds = getWelcomedIds()
+                    val isWelcomed = welcomedIds.contains(osmUser.id.toString())
+
+                    val changesetsResult = repository.fetchUserChangesets(osmUser.id, limit = 1)
+                    val latestChangeset = changesetsResult.getOrNull()?.firstOrNull()
+
+                    val analysis = UserAnalyzer.analyze(
+                        user = osmUser,
+                        userChangesets = emptyList(),
+                        recentChangeset = latestChangeset,
+                        isWelcomed = isWelcomed
+                    )
+
+                    val userEntity = osmUser.toEntity(analysis)
+                    userDao.insertUser(userEntity)
+
+                    val activityEntity = UserAreaActivityEntity(
+                        bbox = _uiState.value.selectedBBox,
+                        userId = osmUser.id,
+                        lastChangesetDate = analysis.lastActiveDate ?: (latestChangeset?.createdAt ?: ""),
+                        lastChangesetId = latestChangeset?.id ?: 0L
+                    )
+                    userDao.insertUserAreaActivities(listOf(activityEntity))
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        searchTerm = osmUser.displayName,
+                        errorMessage = null
+                    )
+                    reloadLocalData()
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = application.getString(R.string.no_results_msg, term)
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error searching OSM user online for term: $term")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = application.getString(R.string.error_search_format, e.message ?: "")
+                )
+            }
         }
     }
 
@@ -665,44 +763,12 @@ class MainViewModel @Inject constructor(
         loadData(forceRefresh = true)
     }
 
-    private fun UserEntity.toOsmUser(): OsmUser {
-        return OsmUser(
-            id = id,
-            displayName = displayName,
-            accountCreated = accountCreated,
-            description = description,
-            img = imgUrl?.let { UserImage(it) },
-            roles = emptyList(),
-            changesets = CountWrapper(totalEdits),
-            traces = null,
-            etag = etag,
-            lastModified = lastModified
-        )
-    }
 
-    private fun UserEntity.toAnalysis(lastActiveDateOverride: String? = lastActiveDate): UserAnalysis {
-        return UserAnalysis(
-            accountAge = accountAge,
-            isNewcomer = isNewcomer,
-            isReturning = isReturning,
-            isPowerUser = isPowerUser,
-            totalEdits = totalEdits,
-            firstChangesetDate = firstChangesetDate,
-            lastActiveDate = lastActiveDateOverride,
-            osmchaLikes = osmchaLikes,
-            osmchaDislikes = osmchaDislikes,
-            isWelcomed = isWelcomed
-        )
-    }
 
-    private fun UserAreaActivityWithUser.toUiModel(): UserUiModel {
-        val analysis = user.toAnalysis(lastActiveDateOverride = lastChangesetDate)
-        return UserUiModel(
-            user = user.toOsmUser(),
-            analysis = analysis,
-            lastUpdated = areaLastUpdated,
-            osmchaLastChecked = user.osmchaLastChecked
-        )
+    suspend fun getUserById(userId: Long): UserUiModel? {
+        val inMemory = _uiState.value.users.find { it.user.id == userId }
+        if (inMemory != null) return inMemory
+        return userDao.getUserById(userId)?.toUiModel()
     }
 
     fun toggleWelcomed(userId: Long, currentStatus: Boolean) {
@@ -776,25 +842,5 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun OsmUser.toEntity(analysis: UserAnalysis): UserEntity {
-        return UserEntity(
-            id = id,
-            displayName = displayName,
-            accountCreated = accountCreated,
-            description = description,
-            accountAge = analysis.accountAge,
-            isNewcomer = analysis.isNewcomer,
-            isReturning = analysis.isReturning,
-            isPowerUser = analysis.isPowerUser,
-            totalEdits = analysis.totalEdits,
-            firstChangesetDate = analysis.firstChangesetDate,
-            lastActiveDate = analysis.lastActiveDate,
-            osmchaLikes = analysis.osmchaLikes,
-            osmchaDislikes = analysis.osmchaDislikes,
-            isWelcomed = analysis.isWelcomed,
-            imgUrl = img?.href,
-            etag = null, // Set in repo or dao
-            lastModified = null
-        )
-    }
+
 }

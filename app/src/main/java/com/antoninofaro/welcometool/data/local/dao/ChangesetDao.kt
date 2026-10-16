@@ -56,6 +56,16 @@ abstract class ChangesetDao {
     @Query(
         """
         SELECT * FROM changesets 
+        WHERE (uid = :uid AND :uid != 0) OR (:displayName != '' AND user = :displayName)
+        ORDER BY createdAt DESC 
+        LIMIT :limit
+        """
+    )
+    abstract suspend fun getRecentChangesetsForUser(uid: Long, displayName: String, limit: Int = 3): List<ChangesetEntity>
+
+    @Query(
+        """
+        SELECT * FROM changesets 
         WHERE bbox = :bbox 
           AND (:userFilter = '' OR user = :userFilter)
           AND (:uidFilter = 0 OR uid = :uidFilter)

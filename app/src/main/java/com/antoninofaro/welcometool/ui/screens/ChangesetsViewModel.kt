@@ -34,7 +34,7 @@ data class ChangesetsUiState(
     val isSearchingById: Boolean = false,
     val filterReviewRequested: Boolean = false,
     val filterAnomalies: Boolean = false,
-    val selectedBBox: String = Constants.ITALY_BBOX,
+    val selectedBBox: String = Constants.WORLD_BBOX,
     val isOnline: Boolean = true,
     val selectedChangesetElements: ChangedElementGroup? = null,
     val isElementsLoading: Boolean = false
@@ -57,7 +57,7 @@ class ChangesetsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val savedBBox = settingsRepository.settingsFlow.first().defaultBBox
+            val savedBBox = settingsRepository.settingsFlow.first { it.isLoaded }.defaultBBox
             _uiState.value = _uiState.value.copy(selectedBBox = savedBBox)
             loadLocalChangesets(true)
             val existing = changesetDao.getChangesetsForBBoxPage(savedBBox, 1, 0)

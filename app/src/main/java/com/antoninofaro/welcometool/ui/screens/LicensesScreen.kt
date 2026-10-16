@@ -1,11 +1,15 @@
 package com.antoninofaro.welcometool.ui.screens
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
@@ -27,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.antoninofaro.welcometool.R
+import com.antoninofaro.welcometool.ui.components.VerticalScrollbar
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 
@@ -41,6 +46,7 @@ fun LicensesScreen(onNavigateUp: () -> Unit) {
     }
 
     var query by remember { mutableStateOf("") }
+    val licensesListState = rememberLazyListState()
     var selectedLicenses by remember { mutableStateOf(setOf<String>()) }
     val licenseNames = remember(libs) { libs.licenses.map { it.name }.sorted() }
 
@@ -98,12 +104,24 @@ fun LicensesScreen(onNavigateUp: () -> Unit) {
                 }
             }
 
-            LibrariesContainer(
-                filteredLibs,
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-            )
+            ) {
+                LibrariesContainer(
+                    filteredLibs,
+                    lazyListState = licensesListState,
+                    modifier = Modifier.fillMaxSize()
+                )
+                VerticalScrollbar(
+                    listState = licensesListState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .padding(end = 4.dp)
+                )
+            }
         }
     }
 }

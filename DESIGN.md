@@ -40,10 +40,22 @@ Monitors OpenStreetMap changesets globally (no geographic bias) and identifies n
 - Sync interval: slider or picker with minimum 15 min, default 30 min.
 - Notifications: default OFF, explicit toggle to enable.
 
-### 4. Licenses (`licenses`)
+### 4. Changeset List (`changeset_list`)
+- **LazyColumn** of changesets matching the current bbox.
+- **ChangesetCard**: Displays changeset metadata (user, time, comment) with expressive spacing.
+- Filter chips for changeset characteristics.
+
+### 5. Changeset Detail (`changeset_detail/{changesetId}`)
+- Deep dive into a single changeset's tags, bbox (via `BBoxMiniMap`), and OSMCha status.
+- Action buttons to open in external tools (OSM, OSMCha).
+
+### 6. Onboarding (`onboarding`)
+- Initial setup flow for selecting the default monitoring area and granting notification permissions.
+
+### 7. Licenses (`licenses`)
 - Open source libraries with search + license filter chips.
 
-### 5. Offline / Stale state (cross-cutting)
+### 8. Offline / Stale state (cross-cutting)
 - All list and detail screens detect stale data and show a visual indicator.
 - **Banner pattern**: `Surface` on `tertiaryContainer`, rounded 12dp, containing an `Icon` (info) + `Text` ("Data may be stale, last updated: [relative time]") + optional `TextButton` ("Refresh").
 - The banner collapses or disappears after a manual refresh or when fresh data arrives from the scheduled worker.

@@ -17,11 +17,20 @@ Android app that monitors OpenStreetMap changesets, identifies newcomers, and tr
 | File | Role |
 |------|------|
 | `MainViewModel.kt` | Fetches changesets → enriches details → `UserAnalyzer` → Persistence. Paginates Room (size 100). |
+| `ChangesetsViewModel.kt` | Manages state for changeset listing and details. |
 | `UserListScreen.kt` | Expressive cards (24dp radius), Fading Edge scroll effect, Category filters, **stale data warning banner**. |
 | `UserDetailScreen.kt` | Large avatar (120dp) + name in `headlineMedium`, StatusCards, Detail cards (24dp radius), Action buttons. |
+| `ChangesetListScreen.kt` | Lists recent changesets in the area. |
+| `ChangesetDetailScreen.kt` | Details of a specific changeset. |
 | `SettingsScreen.kt` | Expandable sections with expressive spacing (20-24dp padding), Card-based UI (24dp radius), Fading Edge. |
+| `OnboardingScreen.kt` | Initial setup for bbox and permissions. |
 
-### `ui/theme/`
+### `ui/components/`
+| File | Role |
+|------|------|
+| `BBoxMiniMap.kt` | Visualizes the monitored bounding box. |
+| `ChangesetCard.kt` | Reusable card for changeset data. |
+| `ProfileAvatar.kt` | AsyncImage with fallback for user avatars. |
 | File | Role |
 |------|------|
 | `Color.kt` | Cartographic Material palette: Grass Green (Primary), Water Blue (Secondary), Earth Brown (Tertiary). |
@@ -95,16 +104,15 @@ Android app that monitors OpenStreetMap changesets, identifies newcomers, and tr
 | Room database | Indefinite persistence | No eviction (yet) |
 | DataStore (registries) | Welcomed/notified IDs | Indefinite |
 
-**Gap**: `settings.cacheEnabled` flag is persisted but not wired to runtime cache. See `data/ROADMAP.md`.
+The cache is divided into categories (OSM API, OSMCha, Nominatim, Avatar) which can be enabled/disabled independently in Settings (`CacheCategory.kt`, `CacheRegistry.kt`).
 
 ---
 
-## Rate limiting (current state)
-- No HTTP 429 detection or handling yet.
-- `safeApiCall()` catches exceptions but doesn't parse `Retry-After` headers or implement backoff.
+## Rate limiting
+- HTTP 429 detection is implemented via `RateLimitInterceptor` which parses `Retry-After` headers.
+- Throws `RateLimitException` to trigger appropriate backoff.
 - WorkManager worker has `EXPONENTIAL` backoff (30s base) on failure.
-- `retryOnConnectionFailure(true)` on OkHttp handles TCP-level retransmission only.
-- **Priority**: implement rate limit awareness before adding new API consumers.
+- `retryOnConnectionFailure(true)` on OkHttp handles TCP-level retransmission.
 
 ---
 

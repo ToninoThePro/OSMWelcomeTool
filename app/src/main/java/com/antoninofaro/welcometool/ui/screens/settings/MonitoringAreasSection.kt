@@ -26,6 +26,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -150,22 +151,17 @@ fun MonitoringAreasSection(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        val visibleAreas = remember(settings.monitoringAreas, settings.defaultBBox) {
-            val areas = settings.monitoringAreas
-            if (areas.size > 1) {
-                areas.filter { area ->
-                    area.bbox != Constants.ITALY_BBOX || settings.defaultBBox == Constants.ITALY_BBOX
-                }
-            } else {
-                areas
-            }
-        }
+        var expandedBBox by rememberSaveable { mutableStateOf<String?>(null) }
 
-        visibleAreas.forEach { area ->
+        settings.monitoringAreas.forEach { area ->
             SavedAreaItem(
                 area = area,
                 isDefault = settings.defaultBBox == area.bbox,
                 canRemove = settings.monitoringAreas.size > 1,
+                isExpanded = expandedBBox == area.bbox,
+                onToggleExpand = {
+                    expandedBBox = if (expandedBBox == area.bbox) null else area.bbox
+                },
                 onSetDefault = { viewModel.setDefaultMonitoringArea(area) },
                 onRemove = { viewModel.removeMonitoringArea(area.bbox) }
             )

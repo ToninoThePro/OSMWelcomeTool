@@ -3,12 +3,14 @@ package com.antoninofaro.welcometool.ui.screens
 import android.app.Application
 import com.antoninofaro.welcometool.data.cache.CacheRegistry
 import com.antoninofaro.welcometool.data.cache.CacheSizeCalculator
+import com.antoninofaro.welcometool.data.local.AppDatabase
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.NominatimRepository
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmChaRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.repository.VerifyTokenResult
+import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
 import com.antoninofaro.welcometool.utils.NotificationHelper
 import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
@@ -35,10 +37,12 @@ class SettingsViewModelTest {
     private val settingsRepository = mock<SettingsRepository>()
     private val nominatimRepository = mock<NominatimRepository>()
     private val notifiedUserStorage = mock<NotifiedUserStorage>()
+    private val welcomedUserStorage = mock<WelcomedUserStorage>()
     private val osmChaRepository = mock<OsmChaRepository>()
     private val notificationHelper = mock<NotificationHelper>()
     private val cacheRegistry = mock<CacheRegistry>()
     private val cacheSizeCalculator = mockk<CacheSizeCalculator>()
+    private val appDatabase = mock<AppDatabase>()
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var viewModel: SettingsViewModel
@@ -56,10 +60,12 @@ class SettingsViewModelTest {
             settingsRepository = settingsRepository,
             nominatimRepository = nominatimRepository,
             notifiedUserStorage = notifiedUserStorage,
+            welcomedUserStorage = welcomedUserStorage,
             osmChaRepository = osmChaRepository,
             notificationHelper = notificationHelper,
             cacheRegistry = cacheRegistry,
-            cacheSizeCalculator = cacheSizeCalculator
+            cacheSizeCalculator = cacheSizeCalculator,
+            appDatabase = appDatabase
         )
     }
 

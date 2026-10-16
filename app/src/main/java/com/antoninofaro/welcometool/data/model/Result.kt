@@ -5,8 +5,8 @@ import timber.log.Timber
 /**
  * Sealed class per rappresentare il risultato di operazioni asincrone
  */
-sealed class Result<T> {
-    data class Success<T>(val data: T) : Result<T>()
+sealed class Result<out T> {
+    data class Success<out T>(val data: T) : Result<T>()
     data class Error(val exception: Exception, val message: String? = exception.message) :
         Result<Nothing>()
 
@@ -21,7 +21,7 @@ sealed class Result<T> {
         else -> null
     }
 
-    fun getOrDefault(defaultValue: T): T = when (this) {
+    fun getOrDefault(defaultValue: @UnsafeVariance T): T = when (this) {
         is Success -> data
         else -> defaultValue
     }
@@ -43,7 +43,8 @@ suspend inline fun <T> safeApiCall(crossinline apiCall: suspend () -> T): Result
 
     while (true) {
         try {
-            return Result.Success(apiCall())
+            val data = apiCall()
+            return Result.Success(data)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -52,8 +53,7 @@ suspend inline fun <T> safeApiCall(crossinline apiCall: suspend () -> T): Result
                 Timber.w("RateLimitException in safeApiCall, retry %d/%d after %ds", currentAttempt, maxAttempts, e.retryAfterSeconds)
                 kotlinx.coroutines.delay(e.retryAfterSeconds * 1000L)
             } else {
-                @Suppress("UNCHECKED_CAST")
-                return Result.Error(e) as Result<T>
+                return Result.Error(e)
             }
         }
     }

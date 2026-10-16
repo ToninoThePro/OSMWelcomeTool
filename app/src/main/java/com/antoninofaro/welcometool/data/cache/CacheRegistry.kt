@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Cache
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,6 +59,43 @@ class CacheRegistry @Inject constructor(
                 override val sizeBytes: Long
                     get() = try { context.imageLoader.diskCache?.size ?: 0L } catch (e: Exception) { 0L }
                 override fun clear() { try { context.imageLoader.diskCache?.clear() } catch (e: Exception) { } }
+            },
+            object : CacheCategory {
+                override val id = "map_tiles"
+                override val name = context.getString(R.string.cache_category_map_tiles)
+                override val isEnabled = true
+                override val sizeBytes: Long
+                    get() = try {
+                        var total = 0L
+                        val mbDbDatabases = context.getDatabasePath("mbgl-cache.db")
+                        if (mbDbDatabases.exists()) total += mbDbDatabases.length()
+
+                        val files = listOf(
+                            File(context.cacheDir, "mbgl-cache.db"),
+                            File(context.cacheDir, "mbgl-cache.db-wal"),
+                            File(context.cacheDir, "mbgl-cache.db-shm"),
+                            File(context.filesDir, "mbgl-cache.db"),
+                            File(context.filesDir, "mbgl-cache.db-wal"),
+                            File(context.filesDir, "mbgl-cache.db-shm")
+                        )
+                        for (file in files) {
+                            if (file.exists()) {
+                                total += file.length()
+                            }
+                        }
+                        total
+                    } catch (e: Exception) { 0L }
+                override fun clear() {
+                    try {
+                        context.deleteDatabase("mbgl-cache.db")
+                        File(context.cacheDir, "mbgl-cache.db").delete()
+                        File(context.cacheDir, "mbgl-cache.db-wal").delete()
+                        File(context.cacheDir, "mbgl-cache.db-shm").delete()
+                        File(context.filesDir, "mbgl-cache.db").delete()
+                        File(context.filesDir, "mbgl-cache.db-wal").delete()
+                        File(context.filesDir, "mbgl-cache.db-shm").delete()
+                    } catch (e: Exception) { }
+                }
             }
         )
     }

@@ -10,14 +10,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.antoninofaro.welcometool.ui.components.BBoxMiniMap
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,9 +73,20 @@ fun OnboardingScreen(
     val settings by viewModel.settings.collectAsState()
 
     var selectedArea by remember { mutableStateOf<MonitoringArea?>(null) }
+    var expandedResultBBox by rememberSaveable { mutableStateOf<String?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        viewModel.clearAreaSearchResults()
+    }
+
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isBlank()) {
+            viewModel.clearAreaSearchResults()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -224,6 +244,10 @@ fun OnboardingScreen(
                                 AreaResultItem(
                                     area = area,
                                     isSelected = selectedArea?.bbox == area.bbox,
+                                    isExpanded = expandedResultBBox == area.bbox,
+                                    onToggleExpand = {
+                                        expandedResultBBox = if (expandedResultBBox == area.bbox) null else area.bbox
+                                    },
                                     onClick = {
                                         selectedArea = area
                                     }
@@ -238,26 +262,19 @@ fun OnboardingScreen(
 
             Button(
                 onClick = {
-                    val areaToSet = selectedArea ?: MonitoringArea(
-                        Constants.DEFAULT_AREA_NAME,
-                        Constants.ITALY_BBOX
-                    )
+                    val areaToSet = selectedArea ?: return@Button
                     scope.launch {
                         viewModel.completeOnboarding(areaToSet)
                         onFinish()
                     }
                 },
+                enabled = selectedArea != null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(24.dp)
             ) {
-                Text(
-                    if (selectedArea != null)
-                        stringResource(R.string.onboarding_start_monitoring)
-                    else
-                        stringResource(R.string.onboarding_skip_btn)
-                )
+                Text(stringResource(R.string.onboarding_start_monitoring))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -269,11 +286,12 @@ fun OnboardingScreen(
 private fun AreaResultItem(
     area: MonitoringArea,
     isSelected: Boolean,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
     onClick: () -> Unit
 ) {
     Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
                 MaterialTheme.colorScheme.primaryContainer
@@ -282,32 +300,54 @@ private fun AreaResultItem(
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = area.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = area.bbox,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isSelected)
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onClick() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = area.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = area.bbox,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isSelected)
+                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (isSelected) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = stringResource(R.string.selected_desc),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                IconButton(onClick = onToggleExpand) {
+                    Icon(
+                        if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            if (isSelected) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = stringResource(R.string.selected_desc),
-                    tint = MaterialTheme.colorScheme.primary
-                )
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    BBoxMiniMap(
+                        bboxString = area.bbox,
+                        label = area.name
+                    )
+                }
             }
         }
     }

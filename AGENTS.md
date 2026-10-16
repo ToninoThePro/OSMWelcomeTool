@@ -12,7 +12,7 @@ The app must be as light as possible on external servers (OSM API, Nominatim, OS
 2. **Gentle backoff**: prefer stale data over risking a 429. No burst requests.
 3. **Transparency**: show users when data is stale and when it was last updated.
 
-HTTP 429 handling and rate limiting are high-priority gaps, work in progress (see `data/ROADMAP.md`).
+HTTP 429 handling and rate limiting are implemented via `RateLimitInterceptor`.
 Every new API call pattern must be reviewed for server impact: prefer cache over fetch.
 
 ## Scan strategy
