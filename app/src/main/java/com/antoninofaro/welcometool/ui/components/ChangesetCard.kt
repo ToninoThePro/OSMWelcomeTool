@@ -87,8 +87,7 @@ fun ChangesetCard(
                     )
                 }
                 
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-                val timestamp = try { sdf.parse(entity.createdAt)?.time ?: 0L } catch(e: Exception) { 0L }
+                val timestamp = com.antoninofaro.welcometool.utils.parseIsoToMillis(entity.createdAt)
                 
                 Text(
                     text = formatRelativeTime(

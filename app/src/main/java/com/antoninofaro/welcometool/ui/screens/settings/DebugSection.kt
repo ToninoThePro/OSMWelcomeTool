@@ -26,6 +26,9 @@ import com.antoninofaro.welcometool.R
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.ui.screens.SettingsViewModel
 
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.platform.LocalContext
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DebugSection(
@@ -37,6 +40,7 @@ fun DebugSection(
     if (!BuildConfig.DEBUG) return
     
     val isExpanded = "debug" in expandedSections
+    val context = LocalContext.current
     
     ExpandableSettingsSection(
         icon = Icons.Default.BugReport,
@@ -61,6 +65,20 @@ fun DebugSection(
         )
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        FilledTonalButton(
+            onClick = { viewModel.triggerManualSync(context) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.sync_now_btn))
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         FilledTonalButton(
             onClick = { viewModel.sendTestNotification() },

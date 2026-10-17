@@ -28,4 +28,9 @@ object DatabaseModule {
     @Provides
     fun provideChangesetDao(appDatabase: AppDatabase): com.antoninofaro.welcometool.data.local.dao.ChangesetDao =
         appDatabase.changesetDao()
+
+    @Singleton
+    @Provides
+    fun provideAreaSyncStateDao(appDatabase: AppDatabase): com.antoninofaro.welcometool.data.local.dao.AreaSyncStateDao =
+        appDatabase.areaSyncStateDao()
 }

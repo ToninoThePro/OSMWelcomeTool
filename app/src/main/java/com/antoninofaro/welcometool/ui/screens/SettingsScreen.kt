@@ -107,6 +107,7 @@ private fun SettingsScreenContent(
     var showClearDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
     var showRemoveTokenDialog by remember { mutableStateOf(false) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
     var areaQuery by remember { mutableStateOf("") }
 
     Scaffold(
@@ -184,13 +185,15 @@ private fun SettingsScreenContent(
                 settings = settings,
                 tokenVerification = tokenVerification,
                 expandedSections = expandedSections,
-                onToggle = { expandedSections = expandedSections.toggle(it) }
+                onToggle = { expandedSections = expandedSections.toggle(it) },
+                onShowRemoveTokenDialog = { showRemoveTokenDialog = true }
             )
 
             CacheSection(
                 viewModel = viewModel,
                 expandedSections = expandedSections,
-                onToggle = { expandedSections = expandedSections.toggle(it) }
+                onToggle = { expandedSections = expandedSections.toggle(it) },
+                onShowClearCacheDialog = { showClearCacheDialog = true }
             )
 
             OtherInfoSection(
@@ -201,7 +204,6 @@ private fun SettingsScreenContent(
             )
 
             DangerZoneSection(
-                viewModel = viewModel,
                 expandedSections = expandedSections,
                 onToggle = { expandedSections = expandedSections.toggle(it) },
                 onShowClearDialog = { showClearDialog = true },
@@ -230,6 +232,13 @@ private fun SettingsScreenContent(
         RemoveTokenDialog(
             onDismiss = { showRemoveTokenDialog = false },
             onConfirm = { viewModel.clearOsmchaToken() }
+        )
+    }
+
+    if (showClearCacheDialog) {
+        ClearCacheDialog(
+            onDismiss = { showClearCacheDialog = false },
+            onConfirm = { viewModel.clearAllCaches() }
         )
     }
 }

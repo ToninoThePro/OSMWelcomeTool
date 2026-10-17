@@ -5,6 +5,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.antoninofaro.welcometool.data.entity.UserAreaActivityEntity
 import com.antoninofaro.welcometool.data.entity.UserEntity
 import com.antoninofaro.welcometool.data.local.model.UserAreaActivityWithUser
@@ -18,7 +19,37 @@ interface UserDao {
     suspend fun insertUsers(users: List<UserEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUserAreaActivity(activity: UserAreaActivityEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUserAreaActivities(activities: List<UserAreaActivityEntity>)
+
+    @Query("SELECT * FROM user_area_activity WHERE bbox = :bbox AND userId IN (:userIds)")
+    suspend fun getUserAreaActivities(bbox: String, userIds: Set<Long>): List<UserAreaActivityEntity>
+
+    @Transaction
+    open suspend fun insertOrUpdateUserAreaActivities(activities: List<UserAreaActivityEntity>) {
+        if (activities.isEmpty()) return
+        
+        // Group by bbox to handle cases where activities might belong to different bboxes
+        activities.groupBy { it.bbox }.forEach { (bbox, bboxActivities) ->
+            val userIds = bboxActivities.map { it.userId }.toSet()
+            val existingMap = getUserAreaActivities(bbox, userIds).associateBy { it.userId }
+            
+            val toInsert = bboxActivities.filter { newActivity ->
+                val existing = existingMap[newActivity.userId]
+                if (existing != null) {
+                    // Solo se la nuova attività è più recente (string comparison su date ISO8601 va bene)
+                    newActivity.lastChangesetDate > existing.lastChangesetDate
+                } else {
+                    true
+                }
+            }
+            if (toInsert.isNotEmpty()) {
+                insertUserAreaActivities(toInsert)
+            }
+        }
+    }
 
     @Query("SELECT * FROM users WHERE id = :userId")
     suspend fun getUserById(userId: Long): UserEntity?

@@ -51,7 +51,8 @@ import com.antoninofaro.welcometool.ui.screens.SettingsViewModel
 fun CacheSection(
     viewModel: SettingsViewModel,
     expandedSections: Set<String>,
-    onToggle: (String) -> Unit
+    onToggle: (String) -> Unit,
+    onShowClearCacheDialog: () -> Unit
 ) {
     val isExpanded = "cache" in expandedSections
     
@@ -105,7 +106,7 @@ fun CacheSection(
                 }
             }
             FilledTonalButton(
-                onClick = { viewModel.clearAllCaches() },
+                onClick = onShowClearCacheDialog,
                 enabled = (currentCacheSizes?.totalHttpCacheSize ?: 0L) > 0L,
                 shape = RoundedCornerShape(12.dp)
             ) {

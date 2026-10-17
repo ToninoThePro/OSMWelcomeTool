@@ -33,6 +33,15 @@ interface OsmApiService {
 
     @GET("api/0.6/changesets.json")
     suspend fun getUserChangesets(
+        @Query("user") userId: Long? = null,
+        @Query("bbox") bbox: String? = null,
+        @Query("limit") limit: Int = 100,
+        @Query("display_name") username: String? = null,
+        @Query("time") time: String? = null
+    ): OsmChangesetWrapper
+
+    @GET("api/0.6/changesets.json")
+    suspend fun getUserChangesetsAnywhere(
         @Query("user") userId: Long,
         @Query("limit") limit: Int = 100
     ): OsmChangesetWrapper
@@ -41,6 +50,11 @@ interface OsmApiService {
     suspend fun getChangesetsByUsername(
         @Query("display_name") username: String,
         @Query("limit") limit: Int = 1
+    ): OsmChangesetWrapper
+
+    @GET("api/0.6/changesets.json")
+    suspend fun getChangesetsByIds(
+        @Query("changesets") ids: String
     ): OsmChangesetWrapper
 
     @GET("api/0.6/changeset/{id}/download")

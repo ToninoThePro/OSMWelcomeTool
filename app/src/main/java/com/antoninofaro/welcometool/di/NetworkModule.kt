@@ -50,7 +50,11 @@ object NetworkModule {
             .retryOnConnectionFailure(true)
             .addInterceptor(RateLimitInterceptor())
             .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
+                val originalRequest = chain.request()
+                if (BuildConfig.DEBUG && originalRequest.url.encodedPath.contains("changesets")) {
+                    Timber.tag("OsmChangesetQuery").d("Final URL for /changesets query: %s", originalRequest.url)
+                }
+                val request = originalRequest.newBuilder()
                     .header(
                         "User-Agent",
                         "OSMWelcomeTool/${BuildConfig.VERSION_NAME} (Contact: farotonino@gmail.com)"
@@ -89,7 +93,12 @@ object NetworkModule {
         settingsRepository: SettingsRepository,
         @OsmCache cache: Cache
     ): OkHttpClient {
+        val dispatcher = okhttp3.Dispatcher().apply {
+            maxRequests = 2
+            maxRequestsPerHost = 2
+        }
         return baseClient.newBuilder()
+            .dispatcher(dispatcher)
             .cache(cache)
             .addNetworkInterceptor(OsmCacheControlInterceptor(settingsRepository))
             .build()

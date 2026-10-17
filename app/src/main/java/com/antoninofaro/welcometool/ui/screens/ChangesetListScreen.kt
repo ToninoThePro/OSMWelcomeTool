@@ -128,6 +128,10 @@ fun ChangesetListScreen(
         derivedStateOf { listState.firstVisibleItemIndex > 0 }
     }
 
+    LaunchedEffect(uiState.selectedBBox, uiState.userFilter, uiState.searchTerm, uiState.filterReviewRequested, uiState.filterAnomalies) {
+        listState.scrollToItem(0)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -250,6 +254,8 @@ fun ChangesetListScreen(
                 }
 
                 // Filter Chips Row
+                val isUserFilterActive = uiState.userFilter.isNotEmpty() || uiState.uidFilter > 0L
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -278,7 +284,7 @@ fun ChangesetListScreen(
                         InputChip(
                             selected = true,
                             onClick = {
-                                viewModel.updateSearchTerm("")
+                                viewModel.clearUidFilter()
                             },
                             label = { Text("User ID: ${uiState.uidFilter}") },
                             trailingIcon = {
@@ -288,6 +294,27 @@ fun ChangesetListScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+                        )
+                    }
+                    if (isUserFilterActive) {
+                        val areaLabel = if (uiState.selectedAreaName.isNotBlank()) {
+                            uiState.selectedAreaName
+                        } else {
+                            stringResource(R.string.default_area)
+                        }
+                        FilterChip(
+                            selected = uiState.includeOutsideBBox,
+                            onClick = { viewModel.toggleIncludeOutsideBBox() },
+                            label = { Text(stringResource(R.string.include_outside_bbox, areaLabel)) },
+                            leadingIcon = if (uiState.includeOutsideBBox) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else null
                         )
                     }
                     /* TODO: Re-enable when anomalies filter is ready
@@ -363,6 +390,19 @@ fun ChangesetListScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                        }
+                                    }
+                                } else if (uiState.hasReachedEnd && uiState.changesets.isNotEmpty()) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            androidx.compose.material3.Button(
+                                                onClick = { viewModel.loadMoreFromNetwork() }
+                                            ) {
+                                                androidx.compose.material3.Text("Carica altri 100 changeset")
+                                            }
                                         }
                                     }
                                 }

@@ -29,6 +29,8 @@ data class ChangesetEntity(
     val modifyCount: Int = 0,
     val deleteCount: Int = 0,
     val isOsmchaChecked: Boolean = false,
+    val stopTracking: Boolean = false,
+    val fetchSource: String = "unknown",
     val lastUpdated: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "etag")
     val etag: String? = null,

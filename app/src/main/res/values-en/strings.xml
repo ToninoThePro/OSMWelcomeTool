@@ -11,6 +11,7 @@
     <string name="search_changeset_by_id_hint">Search changeset by ID</string>
     <string name="changeset_not_found">Changeset not found</string>
     <string name="filter_by_user">Filter: @%s</string>
+    <string name="include_outside_bbox">Include changesets outside %s</string>
     <string name="notif_individual_changeset_text">%s ha modificato: %s</string>
     <string name="notif_individual_changeset_title">Nuovo changeset #%d</string>
     <string name="individual_changeset_notif_desc">Ricevi una notifica separata per ogni changeset invece di una notifica raggruppata</string>
@@ -197,6 +198,8 @@
     <string name="onboarding_notifications_desc">Receive alerts for new mappers in the area</string>
     <string name="sync_now_btn">Sync Now</string>
     <string name="changesets_count">%d changesets</string>
+    <string name="clear_cache_dialog_title">Clear cache?</string>
+    <string name="clear_cache_dialog_desc">Are you sure you want to clear the temporary cache? Data will be re-downloaded from servers when needed.</string>
     <string name="clear_all_cache_btn">Clear All Caches</string>
     <string name="clear_all_cache_desc">Deletes all HTTP caches (OSM API, OSMCha, Nominatim, Avatar). User and changeset data in the local database are preserved.</string>
     <string name="cache_category_osm_api">OSM API</string>

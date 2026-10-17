@@ -57,7 +57,8 @@ fun OsmchaSection(
     settings: AppSettings,
     tokenVerification: TokenVerificationState,
     expandedSections: Set<String>,
-    onToggle: (String) -> Unit
+    onToggle: (String) -> Unit,
+    onShowRemoveTokenDialog: () -> Unit
 ) {
     val isExpanded = "osmcha" in expandedSections
     var osmchaTokenInput by rememberSaveable { mutableStateOf("") }
@@ -214,7 +215,7 @@ fun OsmchaSection(
                     Text(stringResource(R.string.verify_btn))
                 }
                 FilledTonalButton(
-                    onClick = { /* showRemoveTokenDialog = true */ },
+                    onClick = onShowRemoveTokenDialog,
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),

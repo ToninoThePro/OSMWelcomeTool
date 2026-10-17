@@ -91,8 +91,7 @@ fun ChangesetDetailScreen(
     var activeFilter by remember { mutableStateOf<DiffFilter?>(null) }
     val uriHandler = LocalUriHandler.current
     
-    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault())
-    val timestamp = try { sdf.parse(entity.createdAt)?.time ?: 0L } catch (e: Exception) { 0L }
+    val timestamp = com.antoninofaro.welcometool.utils.parseIsoToMillis(entity.createdAt)
 
     val createCount = maxOf(entity.createCount, elements?.creates?.size ?: 0)
     val modifyCount = maxOf(entity.modifyCount, elements?.modifies?.size ?: 0)

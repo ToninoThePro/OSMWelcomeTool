@@ -6,6 +6,7 @@ import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.model.safeApiCall
 import com.antoninofaro.welcometool.data.network.OsmApiService
 import com.antoninofaro.welcometool.utils.Constants
+import com.antoninofaro.welcometool.utils.filterForAreaBBox
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,7 +37,7 @@ class OsmRepository @Inject constructor(
     /**
      * Fetches the most recent changesets within a specified bounding box and optional time range.
      *
-     * @param bbox Bounding box string matching "min_lon,min_lat,max_lon,max_lat". Defaults to Italy.
+     * @param bbox Bounding box string matching "min_lon,min_lat,max_lon,max_lat".
      * @param timeRange Optional comma-separated time range to limit results, formatted as "start_time,end_time".
      * @param limit Maximum number of changesets to return.
      * @return A [Result] containing a list of [OsmChangeset] objects if successful, or an error state.
@@ -48,7 +49,7 @@ class OsmRepository @Inject constructor(
     ): Result<List<OsmChangeset>> {
         return safeApiCall {
             val response = apiService.getRecentChangesets(bbox, timeRange, limit)
-            response.changesets
+            response.changesets.filterForAreaBBox(bbox)
         }.also { result ->
             if (result.isError) {
                 Timber.e(
@@ -56,7 +57,7 @@ class OsmRepository @Inject constructor(
                     "Error fetching recent changesets for bbox: $bbox"
                 )
             } else {
-                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets")
+                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets for bbox: $bbox")
             }
         }
     }
@@ -88,16 +89,78 @@ class OsmRepository @Inject constructor(
         }
     }
 
+    suspend fun fetchUserChangesets(
+        userId: Long,
+        bbox: String,
+        limit: Int = 100
+    ): Result<List<OsmChangeset>> {
+        return fetchUserChangesets(
+            userId = userId,
+            bbox = bbox,
+            username = null,
+            timeRange = null,
+            limit = limit
+        )
+    }
 
-    suspend fun fetchUserChangesets(userId: Long, limit: Int = 100): Result<List<OsmChangeset>> {
+    suspend fun fetchUserChangesets(
+        userId: Long? = null,
+        bbox: String? = null,
+        username: String? = null,
+        timeRange: String? = null,
+        limit: Int = 100
+    ): Result<List<OsmChangeset>> {
         return safeApiCall {
-            val response = apiService.getUserChangesets(userId, limit)
+            val response = apiService.getUserChangesets(
+                userId = if (userId != null && userId > 0L) userId else null,
+                bbox = bbox,
+                limit = limit,
+                username = if (!username.isNullOrBlank()) username else null,
+                time = timeRange
+            )
+            val list = response.changesets
+            if (!bbox.isNullOrBlank() && bbox != Constants.WORLD_BBOX) {
+                list.filterForAreaBBox(bbox).sortedByDescending { it.createdAt }
+            } else {
+                list.sortedByDescending { it.createdAt }
+            }
+        }.also { result ->
+            if (result.isError) {
+                Timber.e(result.exceptionOrNull(), "Error fetching changesets for userId: $userId / username: $username")
+            } else {
+                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets for user $userId / $username")
+            }
+        }
+    }
+
+    suspend fun fetchUserChangesetsAnywhere(
+        userId: Long,
+        limit: Int = 100
+    ): Result<List<OsmChangeset>> {
+        return safeApiCall {
+            val response = apiService.getUserChangesetsAnywhere(userId, limit)
             response.changesets.sortedByDescending { it.createdAt }
         }.also { result ->
             if (result.isError) {
-                Timber.e(result.exceptionOrNull(), "Error fetching changesets for userId: $userId")
+                Timber.e(result.exceptionOrNull(), "Error fetching changesets anywhere for userId: $userId")
             } else {
-                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets for user $userId")
+                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets anywhere for user $userId")
+            }
+        }
+    }
+
+    suspend fun fetchChangesetsByIds(
+        ids: List<Long>
+    ): Result<List<OsmChangeset>> {
+        if (ids.isEmpty()) return Result.Success(emptyList())
+        return safeApiCall {
+            val response = apiService.getChangesetsByIds(ids.joinToString(","))
+            response.changesets
+        }.also { result ->
+            if (result.isError) {
+                Timber.e(result.exceptionOrNull(), "Error fetching changesets by ids: $ids")
+            } else {
+                Timber.d("Successfully fetched ${result.getOrNull()?.size ?: 0} changesets by ids")
             }
         }
     }

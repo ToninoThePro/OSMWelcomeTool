@@ -4,6 +4,22 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+fun parseIsoToMillis(dateStr: String?): Long {
+    if (dateStr.isNullOrBlank()) return 0L
+    return try {
+        java.time.Instant.parse(dateStr).toEpochMilli()
+    } catch (_: Exception) {
+        try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }
+            sdf.parse(dateStr)?.time ?: 0L
+        } catch (_: Exception) {
+            0L
+        }
+    }
+}
+
 fun formatRelativeTime(
     timestamp: Long,
     now: String,

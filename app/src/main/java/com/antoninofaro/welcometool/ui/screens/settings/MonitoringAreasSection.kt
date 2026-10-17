@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -68,40 +70,35 @@ fun MonitoringAreasSection(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (areaQuery.isNotBlank()) {
+                    IconButton(onClick = {
+                        onAreaQueryChange("")
+                        viewModel.clearAreaSearchResults()
+                    }) {
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = stringResource(R.string.clear_search_desc)
+                        )
+                    }
+                }
+            },
             shape = RoundedCornerShape(12.dp)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        FilledTonalButton(
+            onClick = { viewModel.searchAreas(areaQuery) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            enabled = areaQuery.isNotBlank() && !isSearchingAreas,
+            shape = RoundedCornerShape(12.dp)
         ) {
-            FilledTonalButton(
-                onClick = { viewModel.searchAreas(areaQuery) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                enabled = areaQuery.isNotBlank() && !isSearchingAreas,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Search, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.search_btn))
-            }
-
-            FilledTonalButton(
-                onClick = {
-                    onAreaQueryChange("")
-                    viewModel.clearAreaSearchResults()
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(stringResource(R.string.clear_btn))
-            }
+            Icon(Icons.Default.Search, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.search_btn))
         }
 
         if (isSearchingAreas) {

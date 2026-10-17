@@ -10,7 +10,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -80,11 +79,11 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = settings.dynamicColor
             ) {
 
-                LaunchedEffect(settings.autoRefresh, settings.autoRefreshInterval) {
+                LaunchedEffect(settings.isOnboardingCompleted, settings.autoRefresh, settings.autoRefreshInterval) {
                     com.antoninofaro.welcometool.utils.WorkerUtils.scheduleOsmSyncWorker(
                         context,
                         settings.autoRefreshInterval,
-                        settings.autoRefresh
+                        settings.autoRefresh && settings.isOnboardingCompleted
                     )
                 }
 

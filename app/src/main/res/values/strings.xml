@@ -137,6 +137,8 @@
     <string name="reset_dialog_desc">Sei sicuro di voler ripristinare tutte le impostazioni ai valori predefiniti?</string>
     <string name="reset_dialog_title">Ripristina Impostazioni</string>
     <string name="reset_settings_btn">Ripristina Impostazioni Predefinite</string>
+    <string name="clear_cache_dialog_title">Svuota cache?</string>
+    <string name="clear_cache_dialog_desc">Sei sicuro di voler svuotare la cache temporanea? I dati verranno riscaricati dai server quando necessario.</string>
     <string name="clear_all_cache_btn">Svuota Tutte le Cache</string>
     <string name="clear_all_cache_desc">Elimina tutte le cache HTTP (OSM API, OSMCha, Nominatim, Avatar). I dati utente e changeset nel database locale non vengono toccati.</string>
     <string name="returning_filter">Ritornati</string>
@@ -197,6 +199,7 @@
     <string name="search_changeset_by_id_hint">Cerca changeset per ID</string>
     <string name="changeset_not_found">Changeset non trovato</string>
     <string name="filter_by_user">Filtro: @%s</string>
+    <string name="include_outside_bbox">Includi changeset fuori %s</string>
     <string name="cache_category_osm_api">OSM API</string>
     <string name="cache_category_osmcha">OSMCha</string>
     <string name="cache_category_nominatim">Nominatim</string>

@@ -1,13 +1,13 @@
 package com.antoninofaro.welcometool.worker
 
 import android.content.Context
-import com.antoninofaro.welcometool.data.local.dao.ChangesetDao
 import com.antoninofaro.welcometool.data.model.OsmChangeset
 import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.NotifiedUserStorage
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
+import com.antoninofaro.welcometool.domain.ChangesetSyncManager
 import com.antoninofaro.welcometool.utils.NotificationHelper
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CancellationException
@@ -20,7 +20,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -33,6 +33,8 @@ import org.robolectric.RobolectricTestRunner
 class OsmSyncWorkerTest {
 
     @Mock
+    private lateinit var syncManager: ChangesetSyncManager
+    @Mock
     private lateinit var osmRepository: OsmRepository
     @Mock
     private lateinit var settingsRepository: SettingsRepository
@@ -40,8 +42,6 @@ class OsmSyncWorkerTest {
     private lateinit var notificationHelper: NotificationHelper
     @Mock
     private lateinit var notifiedUserStorage: NotifiedUserStorage
-    @Mock
-    private lateinit var changesetDao: ChangesetDao
 
     private lateinit var settingsFlow: MutableStateFlow<AppSettings>
 
@@ -53,119 +53,39 @@ class OsmSyncWorkerTest {
     }
 
     @Test
-    fun `periodic scan with last known found in first batch succeeds with one fetch`() = runTest {
+    fun `worker executes Phase A and Phase B sync successfully`() = runTest {
         settingsFlow.value = AppSettings(lastKnownChangesetDate = "2026-06-15T12:00:00Z")
         val batch = listOf(
             cs(102, "2026-06-16T00:00:00Z"),
             cs(101, "2026-06-15T12:00:00Z"),
             cs(100, "2026-06-15T10:00:00Z")
         )
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
             .thenReturn(Result.Success(batch))
 
         val result = doWorkSync()
 
         assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.success())
-        verify(osmRepository, times(1)).fetchRecentChangesets(any(), anyOrNull(), anyOrNull())
+        verify(syncManager, times(1)).executePhaseA(any(), any(), any(), any(), any())
+        verify(syncManager, times(1)).executePhaseB(any(), eq(false), any())
     }
 
     @Test
-    fun `periodic scan not found triggers deep scan up to 4 windows`() = runTest {
-        settingsFlow.value = AppSettings(lastKnownChangesetDate = "2026-05-20T00:00:00Z")
-
-        val batch1 = listOf(cs(104, "2026-06-01T00:00:00Z"), cs(103, "2026-05-25T00:00:00Z"))
-        val batch2 = listOf(cs(102, "2026-05-24T00:00:00Z"), cs(101, "2026-05-22T00:00:00Z"))
-        val batch3 = listOf(cs(100, "2026-05-21T12:00:00Z"))
-        val batch4 = listOf(cs(99, "2026-05-20T01:00:00Z")) // close, not exact match
-
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
-            .thenReturn(
-                Result.Success(batch1),
-                Result.Success(batch2),
-                Result.Success(batch3),
-                Result.Success(batch4)
-            )
-
-        val result = doWorkSync()
-
-        assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.success())
-        verify(osmRepository, times(4)).fetchRecentChangesets(any(), anyOrNull(), anyOrNull())
-    }
-
-    @Test
-    fun `deep scan stops early when last known found in window 2`() = runTest {
-        settingsFlow.value = AppSettings(lastKnownChangesetDate = "2026-06-10T00:00:00Z")
-
-        val batch1 = listOf(cs(102, "2026-06-12T00:00:00Z"), cs(101, "2026-06-11T00:00:00Z"))
-        val batch2 = listOf(cs(100, "2026-06-10T00:00:00Z"), cs(99, "2026-06-09T00:00:00Z"))
-
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
-            .thenReturn(Result.Success(batch1), Result.Success(batch2))
-
-        val result = doWorkSync()
-
-        assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.success())
-        verify(osmRepository, times(2)).fetchRecentChangesets(any(), anyOrNull(), anyOrNull())
-    }
-
-    @Test
-    fun `deep scan stops early when empty batch returned`() = runTest {
-        settingsFlow.value = AppSettings(lastKnownChangesetDate = "2026-05-01T00:00:00Z")
-
-        val batch1 = listOf(cs(100, "2026-05-10T00:00:00Z"))
-
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
-            .thenReturn(Result.Success(batch1), Result.Success(emptyList()))
-
-        val result = doWorkSync()
-
-        assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.success())
-        verify(osmRepository, times(2)).fetchRecentChangesets(any(), anyOrNull(), anyOrNull())
-    }
-
-    @Test
-    fun `fetch returns null Result triggers retry`() = runTest {
-        settingsFlow.value = AppSettings(lastKnownChangesetDate = "2026-06-15T00:00:00Z")
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
-            .thenReturn(Result.Error(RuntimeException("network error")) as Result<List<OsmChangeset>>)
+    fun `fetch returns Error Result triggers retry`() = runTest {
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
+            .thenReturn(Result.Error(RuntimeException("network error")))
 
         val result = doWorkSync()
 
         assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.retry())
-    }
-
-    @Test
-    fun `first batch empty returns success without further calls`() = runTest {
-        settingsFlow.value = AppSettings(lastKnownChangesetDate = "")
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
-            .thenReturn(Result.Success(emptyList()))
-
-        val result = doWorkSync()
-
-        assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.success())
-        verify(osmRepository, times(1)).fetchRecentChangesets(any(), anyOrNull(), anyOrNull())
     }
 
     @Test(expected = CancellationException::class)
     fun `CancellationException propagates`() = runTest {
-        settingsFlow.value = AppSettings()
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
             .thenThrow(CancellationException("worker cancelled"))
 
         doWorkSync()
-    }
-
-    @Test
-    fun `exception in doWork returns retry`() = runTest {
-        settingsFlow.value = AppSettings(lastKnownChangesetDate = "2026-06-15T00:00:00Z")
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
-            .thenReturn(Result.Success(listOf(cs(1, "2026-06-15T00:00:00Z"))))
-        whenever(settingsRepository.updateLastKnownChangesetId(any()))
-            .thenThrow(RuntimeException("db error"))
-
-        val result = doWorkSync()
-
-        assertThat(result).isEqualTo(androidx.work.ListenableWorker.Result.retry())
     }
 
     @Test
@@ -179,7 +99,7 @@ class OsmSyncWorkerTest {
             cs(200, "2026-06-20T00:00:00Z"),
             cs(150, "2026-06-15T00:00:00Z")
         )
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
             .thenReturn(Result.Success(batch))
 
         doWorkSync()
@@ -196,7 +116,7 @@ class OsmSyncWorkerTest {
             showNewChangesetNotifications = false
         )
         val batch = listOf(cs(150, "2026-06-15T00:00:00Z"), cs(100, "2026-06-10T00:00:00Z"))
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
             .thenReturn(Result.Success(batch))
 
         doWorkSync()
@@ -213,13 +133,13 @@ class OsmSyncWorkerTest {
             individualChangesetNotifications = true
         )
         val batch = listOf(cs(200, "2026-06-20T00:00:00Z"))
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
             .thenReturn(Result.Success(batch))
 
         doWorkSync()
 
         verify(notificationHelper).createNotificationChannel()
-        verify(notificationHelper).sendNewChangesetsNotification(any(), org.mockito.kotlin.eq(true), org.mockito.kotlin.eq(0))
+        verify(notificationHelper).sendNewChangesetsNotification(any(), eq(true), eq(0))
     }
 
     @Test
@@ -230,7 +150,7 @@ class OsmSyncWorkerTest {
             showNewChangesetNotifications = true
         )
         val batch = listOf(cs(200, "2026-06-20T00:00:00Z"))
-        whenever(osmRepository.fetchRecentChangesets(any(), anyOrNull(), anyOrNull()))
+        whenever(syncManager.executePhaseA(any(), any(), any(), any(), any()))
             .thenReturn(Result.Success(batch))
 
         doWorkSync()
@@ -244,11 +164,11 @@ class OsmSyncWorkerTest {
         val worker = OsmSyncWorker(
             appContext = ctx,
             workerParams = mock(),
+            syncManager = syncManager,
             osmRepository = osmRepository,
             settingsRepository = settingsRepository,
             notificationHelper = notificationHelper,
-            notifiedUserStorage = notifiedUserStorage,
-            changesetDao = changesetDao
+            notifiedUserStorage = notifiedUserStorage
         )
         return worker.doWork()
     }

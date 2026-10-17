@@ -35,6 +35,7 @@ class MainViewModelTest {
 
     private val application = mock<Application>()
     private val repository = mock<OsmRepository>()
+    private val syncManager = mock<com.antoninofaro.welcometool.domain.ChangesetSyncManager>()
     private val welcomedUserStorage = mock<WelcomedUserStorage>()
     private val osmChaRepository = mock<OsmChaRepository>()
     private val userDao = mock<UserDao>()
@@ -61,6 +62,8 @@ class MainViewModelTest {
         viewModel = MainViewModel(
             application = application,
             repository = repository,
+            syncManager = syncManager,
+            areaSyncStateDao = mock(),
             welcomedUserStorage = welcomedUserStorage,
             osmChaRepository = osmChaRepository,
             userDao = userDao,
@@ -90,7 +93,7 @@ class MainViewModelTest {
             traces = null
         )
         whenever(repository.searchUserByUsername(searchTerm)).thenReturn(Result.Success(mockUser))
-        whenever(repository.fetchUserChangesets(999L, 1)).thenReturn(Result.Success(emptyList()))
+        whenever(repository.fetchUserChangesets(org.mockito.kotlin.eq(999L), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.eq(1))).thenReturn(Result.Success(emptyList()))
         whenever(welcomedUserStorage.getAllWelcomedIds()).thenReturn(emptySet())
 
         // When
@@ -100,7 +103,7 @@ class MainViewModelTest {
         // Then
         verify(repository).searchUserByUsername(searchTerm)
         verify(userDao).insertUser(any())
-        verify(userDao).insertUserAreaActivities(any())
+        verify(userDao).insertOrUpdateUserAreaActivities(any())
         assertThat(viewModel.uiState.value.searchTerm).isEqualTo(searchTerm)
         assertThat(viewModel.uiState.value.errorMessage).isNull()
     }

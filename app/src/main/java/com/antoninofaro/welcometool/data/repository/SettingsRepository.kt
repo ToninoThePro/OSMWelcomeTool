@@ -45,6 +45,9 @@ data class AppSettings(
     val osmchaChangesetsLimit: Int = 100,
     val lastKnownChangesetId: Long = 0L,
     val lastKnownChangesetDate: String = "",
+    val lastSyncStartTimeMs: Long = 0L,
+    val lastPhaseBTimeMs: Long = 0L,
+    val isHistoricalExhausted: Boolean = false,
     val osmchaAutoRefreshDays: Int = 1,
     val monitoringAreas: List<MonitoringArea> = defaultMonitoringAreas(),
     val isOnboardingCompleted: Boolean = false,
@@ -117,6 +120,9 @@ class SettingsRepository @Inject constructor(
         private val OSMCHA_CHANGESETS_LIMIT = intPreferencesKey("osmcha_changesets_limit")
         private val LAST_KNOWN_CHANGESET_ID = longPreferencesKey("last_known_changeset_id")
         private val LAST_KNOWN_CHANGESET_DATE = stringPreferencesKey("last_known_changeset_date")
+        private val LAST_SYNC_START_TIME_MS = longPreferencesKey("last_sync_start_time_ms")
+        private val LAST_PHASE_B_TIME_MS = longPreferencesKey("last_phase_b_time_ms")
+        private val IS_HISTORICAL_EXHAUSTED = booleanPreferencesKey("is_historical_exhausted")
         private val OSMCHA_AUTO_REFRESH_DAYS = intPreferencesKey("osmcha_auto_refresh_days")
         private val MONITORING_AREAS_JSON = stringPreferencesKey("monitoring_areas_json")
         private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
@@ -163,6 +169,9 @@ class SettingsRepository @Inject constructor(
             osmchaChangesetsLimit = preferences[OSMCHA_CHANGESETS_LIMIT] ?: 100,
             lastKnownChangesetId = preferences[LAST_KNOWN_CHANGESET_ID] ?: 0L,
             lastKnownChangesetDate = preferences[LAST_KNOWN_CHANGESET_DATE] ?: "",
+            lastSyncStartTimeMs = preferences[LAST_SYNC_START_TIME_MS] ?: 0L,
+            lastPhaseBTimeMs = preferences[LAST_PHASE_B_TIME_MS] ?: 0L,
+            isHistoricalExhausted = preferences[IS_HISTORICAL_EXHAUSTED] ?: false,
             osmchaAutoRefreshDays = preferences[OSMCHA_AUTO_REFRESH_DAYS] ?: 1,
             monitoringAreas = monitoringAreas,
             isOnboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
@@ -331,6 +340,15 @@ class SettingsRepository @Inject constructor(
 
     suspend fun updateLastKnownChangesetDate(date: String) =
         updatePreference(LAST_KNOWN_CHANGESET_DATE, date)
+
+    suspend fun updateLastSyncStartTimeMs(timestampMs: Long) =
+        updatePreference(LAST_SYNC_START_TIME_MS, timestampMs)
+
+    suspend fun updateLastPhaseBTimeMs(timestampMs: Long) =
+        updatePreference(LAST_PHASE_B_TIME_MS, timestampMs)
+
+    suspend fun updateIsHistoricalExhausted(exhausted: Boolean) =
+        updatePreference(IS_HISTORICAL_EXHAUSTED, exhausted)
 
     suspend fun updateOsmchaAutoRefreshDays(days: Int) =
         updatePreference(OSMCHA_AUTO_REFRESH_DAYS, days)

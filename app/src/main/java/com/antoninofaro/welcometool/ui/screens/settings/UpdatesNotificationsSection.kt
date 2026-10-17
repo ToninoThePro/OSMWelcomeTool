@@ -101,21 +101,6 @@ fun UpdatesNotificationsSection(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(
-            onClick = { viewModel.triggerManualSync(context) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Icon(
-                Icons.Default.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.sync_now_btn))
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()

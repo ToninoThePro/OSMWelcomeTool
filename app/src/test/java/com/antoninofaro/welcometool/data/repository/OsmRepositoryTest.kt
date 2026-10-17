@@ -117,10 +117,10 @@ class OsmRepositoryTest {
             createMockChangeset(3L, "2026-02-19T10:00:00Z")
         )
         val wrapper = OsmChangesetWrapper(changesets)
-        `when`(apiService.getUserChangesets(123L)).thenReturn(wrapper)
+        `when`(apiService.getUserChangesets(123L, Constants.WORLD_BBOX, 100)).thenReturn(wrapper)
 
         // When
-        val result = repository.fetchUserChangesets(123L)
+        val result = repository.fetchUserChangesets(123L, Constants.WORLD_BBOX)
 
         // Then
         assertThat(result).isInstanceOf(Result.Success::class.java)

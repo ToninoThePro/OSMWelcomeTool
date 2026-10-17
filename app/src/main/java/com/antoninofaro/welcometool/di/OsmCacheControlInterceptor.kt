@@ -37,6 +37,7 @@ class OsmCacheControlInterceptor(
         val defaultCacheControl = when {
             url.contains("/api/0.6/user/") && needsDefaultCacheControl -> "public, max-age=86400"
             url.contains("/api/0.6/changesets.json") && needsDefaultCacheControl -> "public, max-age=300"
+            url.contains("/download") && needsDefaultCacheControl -> "public, max-age=31536000" // Cache .osc files for a long time
             else -> null
         }
 

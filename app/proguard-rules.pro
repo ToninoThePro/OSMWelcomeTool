@@ -9,7 +9,10 @@
 
 # Add any project specific keep rules here:
 
-# Keep JSON DTOs used by Gson/Retrofit from being obfuscated in release.
+# Suppress missing annotation warnings from Tink / ErrorProne
+-dontwarn com.google.errorprone.annotations.**
+
+# Keep JSON DTOs used by Gson/Retrofit/Kotlinx Serialization from being obfuscated in release.
 # R8 does not remove the network calls, but it can rename fields/classes used via reflection.
 -keepattributes Signature,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,AnnotationDefault
 -keep class com.antoninofaro.welcometool.data.model.** { *; }

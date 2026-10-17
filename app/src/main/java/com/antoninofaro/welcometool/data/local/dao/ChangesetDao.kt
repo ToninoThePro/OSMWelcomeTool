@@ -25,6 +25,8 @@ abstract class ChangesetDao {
                     modifyCount = if (existing.modifyCount > 0) existing.modifyCount else entity.modifyCount,
                     deleteCount = if (existing.deleteCount > 0) existing.deleteCount else entity.deleteCount,
                     isOsmchaChecked = existing.isOsmchaChecked || entity.isOsmchaChecked,
+                    stopTracking = existing.stopTracking || entity.stopTracking,
+                    fetchSource = if (existing.fetchSource == "history" && entity.fetchSource != "history") existing.fetchSource else entity.fetchSource,
                     osmchaScore = existing.osmchaScore ?: entity.osmchaScore,
                     osmchaIsSuspect = existing.osmchaIsSuspect || entity.osmchaIsSuspect,
                     osmchaHarmful = existing.osmchaHarmful ?: entity.osmchaHarmful,
@@ -42,6 +44,12 @@ abstract class ChangesetDao {
 
     @Query("SELECT * FROM changesets WHERE id = :changesetId")
     abstract suspend fun getChangesetById(changesetId: Long): ChangesetEntity?
+
+    @Query("SELECT MIN(createdAt) FROM changesets WHERE bbox = :bbox AND fetchSource = 'history'")
+    abstract suspend fun getOldestChangesetDateForBBox(bbox: String): String?
+
+    @Query("SELECT * FROM changesets WHERE open = 1 AND stopTracking = 0")
+    abstract suspend fun getOpenChangesetsForTracking(): List<ChangesetEntity>
 
     @Query(
         """
@@ -66,7 +74,7 @@ abstract class ChangesetDao {
     @Query(
         """
         SELECT * FROM changesets 
-        WHERE bbox = :bbox 
+        WHERE (:ignoreBBox = 1 OR bbox = :bbox) 
           AND (:userFilter = '' OR user = :userFilter)
           AND (:uidFilter = 0 OR uid = :uidFilter)
           AND (:searchTerm = '' OR tagsJson LIKE '%' || :searchTerm || '%' ESCAPE '\' OR user LIKE '%' || :searchTerm || '%' ESCAPE '\' OR id LIKE '%' || :searchTerm || '%' ESCAPE '\')
@@ -78,6 +86,7 @@ abstract class ChangesetDao {
     )
     abstract suspend fun getChangesetsForBBoxFiltered(
         bbox: String,
+        ignoreBBox: Boolean = false,
         userFilter: String = "",
         uidFilter: Long = 0L,
         searchTerm: String = "",
@@ -121,5 +130,24 @@ abstract class ChangesetDao {
         createCount: Int,
         modifyCount: Int,
         deleteCount: Int
+    )
+
+    @Query(
+        """
+        UPDATE changesets 
+        SET open = :open, closedAt = :closedAt, numChanges = :numChanges, 
+            commentsCount = :commentsCount, stopTracking = :stopTracking,
+            lastUpdated = :lastUpdated
+        WHERE id = :changesetId
+        """
+    )
+    abstract suspend fun updatePhaseBStatus(
+        changesetId: Long,
+        open: Boolean,
+        closedAt: String?,
+        numChanges: Int,
+        commentsCount: Int,
+        stopTracking: Boolean,
+        lastUpdated: Long = System.currentTimeMillis()
     )
 }

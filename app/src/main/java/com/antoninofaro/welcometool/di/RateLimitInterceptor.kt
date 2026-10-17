@@ -16,12 +16,13 @@ class RateLimitInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
 
-        if (response.code == 429) {
+        if (response.code == 429 || response.code == 503) {
             val retryAfterHeader = response.header("Retry-After")
             val retryAfterSeconds = parseRetryAfter(retryAfterHeader) ?: 60L
 
             Timber.w(
-                "429 from %s, retry after %ds",
+                "HTTP %d from %s, retry after %ds",
+                response.code,
                 chain.request().url.host,
                 retryAfterSeconds
             )
@@ -29,7 +30,7 @@ class RateLimitInterceptor : Interceptor {
             response.close()
             throw RateLimitException(
                 retryAfterSeconds = retryAfterSeconds,
-                message = "Rate limited by ${chain.request().url.host}"
+                message = "Rate limited (HTTP ${response.code}) by ${chain.request().url.host}"
             )
         }
 

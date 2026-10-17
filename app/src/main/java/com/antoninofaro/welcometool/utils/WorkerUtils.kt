@@ -17,32 +17,37 @@ object WorkerUtils {
     const val WORKER_BACKOFF_SECONDS = 30L
 
     fun scheduleOsmSyncWorker(context: Context, intervalMinutes: Int, enabled: Boolean) {
-        val workManager = WorkManager.getInstance(context)
+        try {
+            val workManager = WorkManager.getInstance(context)
 
-        if (!enabled) {
-            Timber.d("Workers disabled, cancelling existing work.")
-            workManager.cancelUniqueWork(OSM_SYNC_WORK_NAME)
-            return
+            if (!enabled) {
+                Timber.d("Workers disabled, cancelling existing work.")
+                workManager.cancelUniqueWork(OSM_SYNC_WORK_NAME)
+                return
+            }
+
+            val safeInterval = intervalMinutes.coerceAtLeast(MIN_WORKER_INTERVAL).toLong()
+
+            Timber.d("Scheduling worker with interval: $safeInterval minutes (requested: $intervalMinutes)")
+
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val request = PeriodicWorkRequestBuilder<OsmSyncWorker>(safeInterval, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .setInitialDelay(safeInterval, TimeUnit.MINUTES)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WORKER_BACKOFF_SECONDS, TimeUnit.SECONDS)
+                .build()
+
+            workManager.enqueueUniquePeriodicWork(
+                OSM_SYNC_WORK_NAME,
+                ExistingPeriodicWorkPolicy.KEEP,
+                request
+            )
+        } catch (e: Exception) {
+            Timber.w(e, "Could not schedule OsmSyncWorker (WorkManager not available)")
         }
-
-        val safeInterval = intervalMinutes.coerceAtLeast(MIN_WORKER_INTERVAL).toLong()
-
-        Timber.d("Scheduling worker with interval: $safeInterval minutes (requested: $intervalMinutes)")
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val request = PeriodicWorkRequestBuilder<OsmSyncWorker>(safeInterval, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WORKER_BACKOFF_SECONDS, TimeUnit.SECONDS)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            OSM_SYNC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
-            request
-        )
     }
 
     const val OSM_SYNC_ONETIME_WORK_NAME = "OsmSyncOneTimeWork"

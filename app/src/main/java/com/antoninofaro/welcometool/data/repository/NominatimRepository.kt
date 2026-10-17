@@ -44,14 +44,13 @@ class NominatimRepository @Inject constructor(
         }
     }
 
-    // Nominatim returns [south, north, west, east], OSM expects west,south,east,north.
+    // Nominatim returns [south, north, west, east], GeoBox converts to west,south,east,north.
     private fun List<String>.toOsmBboxOrNull(): String? {
-        if (size < 4) return null
-        val south = getOrNull(0)?.toDoubleOrNull() ?: return null
-        val north = getOrNull(1)?.toDoubleOrNull() ?: return null
-        val west = getOrNull(2)?.toDoubleOrNull() ?: return null
-        val east = getOrNull(3)?.toDoubleOrNull() ?: return null
-        return "$west,$south,$east,$north"
+        return try {
+            com.antoninofaro.welcometool.utils.GeoBox.fromNominatim(this).toOsmParam()
+        } catch (_: Exception) {
+            null
+        }
     }
 }
 

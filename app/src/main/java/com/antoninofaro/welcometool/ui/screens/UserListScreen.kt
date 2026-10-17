@@ -96,9 +96,30 @@ fun UserListScreen(
     var isAdvancedFiltersVisible by rememberSaveable { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
+    val lazyPagingItems = viewModel.userPagingData.collectAsLazyPagingItems()
     val coroutineScope = rememberCoroutineScope()
     val showScrollToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 0 }
+    }
+
+    var shouldScrollToTopOnRefresh by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.searchTerm, uiState.minChanges, uiState.filterIsNewcomer, uiState.filterIsReturning, uiState.filterIsPowerUser, uiState.selectedBBox) {
+        shouldScrollToTopOnRefresh = true
+        listState.scrollToItem(0)
+    }
+
+    LaunchedEffect(lazyPagingItems.loadState.refresh) {
+        val refreshState = lazyPagingItems.loadState.refresh
+        if (refreshState is LoadState.Loading) {
+            shouldScrollToTopOnRefresh = true
+            listState.scrollToItem(0)
+        } else if (refreshState is LoadState.NotLoading && shouldScrollToTopOnRefresh) {
+            if (lazyPagingItems.itemCount > 0) {
+                listState.scrollToItem(0)
+            }
+            shouldScrollToTopOnRefresh = false
+        }
     }
 
     Scaffold(
@@ -368,7 +389,6 @@ fun UserListScreen(
                         CircularProgressIndicator()
                     }
                 } else {
-                    val lazyPagingItems = viewModel.userPagingData.collectAsLazyPagingItems()
                     val isSearchingByName = uiState.searchTerm.trim().isNotBlank()
                     val isEmpty = lazyPagingItems.itemCount == 0 && lazyPagingItems.loadState.refresh is LoadState.NotLoading
 
@@ -492,16 +512,27 @@ fun UserListScreen(
                                                 }
                                             }
                                             is LoadState.NotLoading -> {
-                                                if (!isSearchingByName && appendState.endOfPaginationReached) {
-                                                    Text(
-                                                        text = stringResource(R.string.end_of_list),
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                if (!isSearchingByName) {
+                                                    Box(
                                                         modifier = Modifier
                                                             .fillMaxWidth()
-                                                            .padding(vertical = 16.dp)
-                                                            .wrapContentSize(Alignment.Center)
-                                                    )
+                                                            .padding(vertical = 12.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Button(
+                                                            onClick = { viewModel.fetchNextWindowFromNetwork() }
+                                                        ) {
+                                                            if (uiState.isPaging) {
+                                                                CircularProgressIndicator(
+                                                                    modifier = Modifier.size(16.dp),
+                                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                                    strokeWidth = 2.dp
+                                                                )
+                                                                Spacer(modifier = Modifier.width(8.dp))
+                                                            }
+                                                            Text("Cerca altri utenti")
+                                                        }
+                                                    }
                                                 }
                                             }
                                             is LoadState.Error -> {
