@@ -1,7 +1,6 @@
 package com.antoninofaro.welcometool.utils
 
 import com.antoninofaro.welcometool.data.entity.ChangesetEntity
-import com.antoninofaro.welcometool.data.entity.UserAreaActivityEntity
 import com.antoninofaro.welcometool.data.entity.UserEntity
 import com.antoninofaro.welcometool.data.local.model.UserAreaActivityWithUser
 import com.antoninofaro.welcometool.data.model.ChangesetUiModel

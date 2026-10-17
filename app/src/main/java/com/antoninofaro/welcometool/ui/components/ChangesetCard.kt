@@ -32,8 +32,6 @@ import com.antoninofaro.welcometool.data.entity.ChangesetEntity
 import com.antoninofaro.welcometool.data.model.ChangesetUiModel
 import com.antoninofaro.welcometool.ui.theme.WelcomeToolTheme
 import com.antoninofaro.welcometool.utils.formatRelativeTime
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 /**
  * Compact Changeset Card:

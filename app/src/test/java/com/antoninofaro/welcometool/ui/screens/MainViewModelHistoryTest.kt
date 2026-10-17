@@ -15,7 +15,6 @@ import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import com.antoninofaro.welcometool.data.repository.WelcomedUserStorage
 import com.antoninofaro.welcometool.domain.ChangesetSyncManager
 import com.antoninofaro.welcometool.utils.ConnectivityObserver
-import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow

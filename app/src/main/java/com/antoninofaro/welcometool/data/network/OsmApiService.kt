@@ -1,9 +1,9 @@
 package com.antoninofaro.welcometool.data.network
 
 import com.antoninofaro.welcometool.data.model.OsmChangesetWrapper
-import com.antoninofaro.welcometool.data.model.SingleOsmChangesetWrapper
 import com.antoninofaro.welcometool.data.model.OsmUserWrapper
 import com.antoninofaro.welcometool.data.model.OsmUsersWrapper
+import com.antoninofaro.welcometool.data.model.SingleOsmChangesetWrapper
 import retrofit2.http.GET
 import retrofit2.http.Query
 

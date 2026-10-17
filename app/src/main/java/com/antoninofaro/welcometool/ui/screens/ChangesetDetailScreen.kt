@@ -5,7 +5,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,12 +57,11 @@ import androidx.compose.ui.unit.dp
 import com.antoninofaro.welcometool.data.entity.ChangesetEntity
 import com.antoninofaro.welcometool.data.model.ChangedElement
 import com.antoninofaro.welcometool.data.model.ChangedElementGroup
-import com.antoninofaro.welcometool.ui.components.BBoxMiniMap
 import com.antoninofaro.welcometool.data.model.ChangesetUiModel
+import com.antoninofaro.welcometool.ui.components.BBoxMiniMap
 import com.antoninofaro.welcometool.ui.components.fadingEdge
 import com.antoninofaro.welcometool.ui.theme.WelcomeToolTheme
 import com.antoninofaro.welcometool.utils.formatRelativeTime
-import java.text.SimpleDateFormat
 import java.util.Locale
 
 enum class DiffFilter {

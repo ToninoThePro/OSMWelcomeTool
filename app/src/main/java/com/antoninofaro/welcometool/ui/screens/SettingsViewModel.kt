@@ -6,12 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.antoninofaro.welcometool.BuildConfig
 import com.antoninofaro.welcometool.R
-import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.cache.CacheCategory
 import com.antoninofaro.welcometool.data.cache.CacheRegistry
 import com.antoninofaro.welcometool.data.cache.CacheSizeCalculator
 import com.antoninofaro.welcometool.data.cache.CacheSizesResult
 import com.antoninofaro.welcometool.data.local.AppDatabase
+import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.AppSettings
 import com.antoninofaro.welcometool.data.repository.MonitoringArea
 import com.antoninofaro.welcometool.data.repository.NominatimRepository

@@ -7,8 +7,6 @@ import com.antoninofaro.welcometool.data.model.Result
 import com.antoninofaro.welcometool.data.repository.OsmRepository
 import com.antoninofaro.welcometool.data.repository.SettingsRepository
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.time.Instant

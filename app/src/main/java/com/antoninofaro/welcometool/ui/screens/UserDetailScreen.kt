@@ -68,11 +68,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.antoninofaro.welcometool.R
+import com.antoninofaro.welcometool.data.model.ChangesetUiModel
 import com.antoninofaro.welcometool.data.model.OsmUser
 import com.antoninofaro.welcometool.domain.UserAnalysis
-import com.antoninofaro.welcometool.ui.components.ProfileAvatar
 import com.antoninofaro.welcometool.ui.components.ChangesetCard
-import com.antoninofaro.welcometool.data.model.ChangesetUiModel
+import com.antoninofaro.welcometool.ui.components.ProfileAvatar
 import com.antoninofaro.welcometool.utils.formatRelativeTime
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
